@@ -1,0 +1,28 @@
+{
+  "name": "beam_flow",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "commitlint": "commitlint --edit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@commitlint/cli": "^18.6.1",
+    "@commitlint/config-conventional": "^18.6.1",
+    "husky": "^9.0.7",
+    "lint-staged": "^15.2.0"
+  },
+  "husky": {
+    "hooks": {
+      "commit-msg": "npm run commitlint",
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ex,exs}": [
+      "mix format",
+      "mix credo --strict"
+    ]
+  }
+}
