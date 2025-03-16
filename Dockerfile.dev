@@ -1,0 +1,23 @@
+FROM hexpm/elixir:1.18.3-erlang-27.2.4-debian-bullseye-20250224-slim
+
+# Install build dependencies
+RUN apt-get update -y && apt-get install -y build-essential git \
+    nodejs npm curl inotify-tools postgresql-client \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+
+# Install hex and rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Create app directory and copy the Elixir projects into it
+WORKDIR /app
+
+# Install Node.js 20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
+
+# Set environment variables
+ENV MIX_ENV=dev
+
+CMD ["/bin/bash"]
