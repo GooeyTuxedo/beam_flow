@@ -1,1 +1,9 @@
+# Run our custom Elixir pre-commit script
+if [ -f "scripts/elixir-pre-commit.sh" ]; then
+  bash scripts/elixir-pre-commit.sh
+else
+  echo "Warning: Elixir pre-commit script not found. Skipping Elixir checks."
+fi
+
+# Run other lint-staged checks (for non-Elixir files)
 npx lint-staged
