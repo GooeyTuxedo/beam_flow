@@ -17,6 +17,12 @@ defmodule BeamFlowWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :admin do
+    plug :browser
+    plug :require_authenticated_user
+    # Additional admin-specific plugs can be added here
+  end
+
   scope "/", BeamFlowWeb do
     pipe_through :browser
 
@@ -72,6 +78,67 @@ defmodule BeamFlowWeb.Router do
       on_mount: [{BeamFlowWeb.UserAuth, :mount_current_user}] do
       live "/users/confirm/:token", UserConfirmationLive, :edit
       live "/users/confirm", UserConfirmationInstructionsLive, :new
+    end
+  end
+
+  scope "/admin", BeamFlowWeb.Admin, as: :admin do
+    pipe_through :admin
+
+    live_session :admin_area,
+      on_mount: [
+        {BeamFlowWeb.UserAuth, :ensure_authenticated},
+        {BeamFlowWeb.LiveAuth, :ensure_admin},
+        {BeamFlowWeb.LiveAuth, :audit_access}
+      ] do
+      live "/", DashboardLive, :index
+      live "/users", UserLive.Index, :index
+      live "/users/new", UserLive.Index, :new
+      live "/users/:id/edit", UserLive.Index, :edit
+      live "/users/:id", UserLive.Show, :show
+
+      # These routes will be implemented later as we build features
+      # live "/posts", PostLive.Index, :index
+      # live "/posts/new", PostLive.Index, :new
+      # live "/posts/:id/edit", PostLive.Index, :edit
+      # live "/posts/:id", PostLive.Show, :show
+
+      # live "/categories", CategoryLive.Index, :index
+      # live "/tags", TagLive.Index, :index
+      # live "/media", MediaLive.Index, :index
+      # live "/comments", CommentLive.Index, :index
+      # live "/settings", SettingsLive, :index
+    end
+  end
+
+  # Add another scope for editor-specific routes
+  scope "/editor", BeamFlowWeb.Editor, as: :editor do
+    pipe_through :browser
+    pipe_through :require_authenticated_user
+
+    live_session :editor_area,
+      on_mount: [
+        {BeamFlowWeb.UserAuth, :ensure_authenticated},
+        {BeamFlowWeb.LiveAuth, :ensure_editor},
+        {BeamFlowWeb.LiveAuth, :audit_access}
+      ] do
+      live "/", DashboardLive, :index
+      # Editor-specific routes will be added here as we implement them
+    end
+  end
+
+  # Add a scope for author routes
+  scope "/author", BeamFlowWeb.Author, as: :author do
+    pipe_through :browser
+    pipe_through :require_authenticated_user
+
+    live_session :author_area,
+      on_mount: [
+        {BeamFlowWeb.UserAuth, :ensure_authenticated},
+        {BeamFlowWeb.LiveAuth, :ensure_author},
+        {BeamFlowWeb.LiveAuth, :audit_access}
+      ] do
+      live "/", DashboardLive, :index
+      # Author-specific routes will be added here as we implement them
     end
   end
 end

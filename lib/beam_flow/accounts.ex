@@ -408,4 +408,32 @@ defmodule BeamFlow.Accounts do
     query = AuditLog.list_recent_logs(AuditLog, limit)
     Repo.all(query)
   end
+
+  @doc """
+  Returns a list of all users.
+
+  ## Examples
+
+      iex> list_users()
+      [%User{}, ...]
+
+  """
+  def list_users do
+    Repo.all(User)
+  end
+
+  @doc """
+  Returns a list of users filtered by role.
+
+  ## Examples
+
+      iex> list_users_by_role(:admin)
+      [%User{}, ...]
+
+  """
+  def list_users_by_role(role) do
+    User
+    |> where([u], u.role == ^role)
+    |> Repo.all()
+  end
 end
