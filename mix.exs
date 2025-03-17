@@ -57,7 +57,8 @@ defmodule BeamFlow.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -79,7 +80,10 @@ defmodule BeamFlow.MixProject do
         "tailwind beam_flow --minify",
         "esbuild beam_flow --minify",
         "phx.digest"
-      ]
+      ],
+      lint: ["format", "credo --strict"],
+      "lint.ci": ["format --check-formatted", "credo --strict"],
+      dialyzer: ["dialyzer"]
     ]
   end
 end

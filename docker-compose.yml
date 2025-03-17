@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile.dev
     container_name: beam_flow_app
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       # Phoenix configuration
       - PHX_HOST=localhost
@@ -14,20 +15,19 @@ services:
       # Database configuration
       - DATABASE_URL=ecto://postgres:postgres@db/beam_flow_dev
       - TEST_DATABASE_URL=ecto://postgres:postgres@db/beam_flow_test
-      # Application environment
-      - MIX_ENV=dev
     ports:
       - "4000:4000"
     volumes:
       - .:/app
-      - beam_flow_build:/app/_build
-      - beam_flow_deps:/app/deps
-      - beam_flow_node_modules:/app/assets/node_modules
-    command: mix phx.server
-    stdin_open: true
-    tty: true
-    networks:
-      - beam_flow_network
+      - build_cache:/app/_build
+      - deps_cache:/app/deps
+      - node_modules_cache:/app/assets/node_modules
+    command: >
+      sh -c "
+        mix deps.get &&
+        mix compile &&
+        mix phx.server
+      "
     restart: unless-stopped
 
   db:
@@ -39,25 +39,19 @@ services:
       - POSTGRES_DB=beam_flow_dev
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - beam_flow_pgdata:/var/lib/postgresql/data/pgdata
+      - pgdata:/var/lib/postgresql/data/pgdata
       - ./scripts/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh
     ports:
       - "5432:5432"
-    networks:
-      - beam_flow_network
-    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-
-networks:
-  beam_flow_network:
-    driver: bridge
+    restart: unless-stopped
 
 volumes:
-  beam_flow_build:
-  beam_flow_deps:
-  beam_flow_node_modules:
-  beam_flow_pgdata:
+  pgdata:
+  build_cache:
+  deps_cache:
+  node_modules_cache:

@@ -1,34 +1,29 @@
-.PHONY: help setup build start stop restart shell logs \
+.PHONY: help setup start stop restart build shell logs \
 	deps compile clean format lint test test.watch \
 	db.setup db.reset db.migrate db.rollback \
-	routes release
+	routes gen.context gen.schema gen.live gen.auth release
 
 # Define colors
 YELLOW := \033[0;33m
 GREEN := \033[0;32m
 NC := \033[0m
 
+# Set the Phoenix version
+PHOENIX_VERSION := 1.7.20
+
 help: ## Show this help
 	@echo "BeamFlow CMS Development Commands"
 	@echo "----------------------------------"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(YELLOW)%-20s$(NC) %s\n", $$1, $$2}'
 
-## Docker commands
-setup: ## Initialize the project (first-time setup)
+setup: ## Set up the project (first time)
 	@echo "$(GREEN)Setting up BeamFlow CMS project...$(NC)"
 	@mkdir -p scripts
 	@chmod +x scripts/init-test-db.sh 2>/dev/null || true
-	@chmod +x .husky/pre-commit 2>/dev/null || true
-	@chmod +x .husky/commit-msg 2>/dev/null || true
-	@npm install
-	@docker compose build
-	@docker compose run --rm app mix deps.get
-	@docker compose run --rm app mix ecto.setup
-	@docker compose run --rm app bash -c "cd assets && npm install"
-	@echo "$(GREEN)Setup complete. Run 'make start' to start the application.$(NC)"
+	@echo "$(GREEN)Setup complete. Run 'make build' to build the Docker image.$(NC)"
 
-build: ## Rebuild the Docker containers
-	@echo "$(GREEN)Building Docker containers...$(NC)"
+build: ## Build the Docker image
+	@echo "$(GREEN)Building Docker image...$(NC)"
 	@docker compose build
 
 start: ## Start the application
@@ -45,16 +40,15 @@ restart: ## Restart the application
 	@make start
 
 shell: ## Connect to the application container shell
-	@docker compose exec app bash
+	@docker compose exec app sh
 
 logs: ## View application logs
-	@docker compose logs -f app
+	@docker compose logs -f
 
-## Development commands
+# Development commands
 deps: ## Get and compile dependencies
 	@echo "$(GREEN)Installing dependencies...$(NC)"
 	@docker compose exec app mix deps.get
-	@docker compose exec app mix deps.compile
 
 compile: ## Compile the application
 	@echo "$(GREEN)Compiling application...$(NC)"
@@ -80,12 +74,7 @@ test.watch: ## Run tests in watch mode
 	@echo "$(GREEN)Running tests in watch mode...$(NC)"
 	@docker compose exec app mix test.watch
 
-coverage: ## Generate test coverage report
-	@echo "$(GREEN)Generating test coverage report...$(NC)"
-	@docker compose exec app mix coveralls.html
-	@echo "$(GREEN)Coverage report generated in cover/excoveralls.html$(NC)"
-
-## Database commands
+# Database commands
 db.setup: ## Set up the database
 	@echo "$(GREEN)Setting up database...$(NC)"
 	@docker compose exec app mix ecto.setup
@@ -102,7 +91,7 @@ db.rollback: ## Rollback the last database migration
 	@echo "$(GREEN)Rolling back last migration...$(NC)"
 	@docker compose exec app mix ecto.rollback
 
-## Phoenix commands
+# Phoenix commands
 routes: ## List all routes
 	@echo "$(GREEN)Listing routes...$(NC)"
 	@docker compose exec app mix phx.routes
@@ -123,25 +112,23 @@ gen.auth: ## Generate authentication system
 	@echo "$(GREEN)Generating authentication system...$(NC)"
 	@docker compose exec app mix phx.gen.auth Accounts User users
 
-release: ## Build a release
-	@echo "$(GREEN)Building release...$(NC)"
+# Project initialization
+init: ## Initialize a fresh Phoenix project
+	@echo "$(GREEN)Initializing fresh Phoenix project...$(NC)"
+	@docker compose run --rm app mix local.hex --force
+	@docker compose run --rm app mix archive.install hex phx_new $(PHOENIX_VERSION) --force
+	@docker compose run --rm app mix phx.new . --app beam_flow --module BeamFlow --database postgres
+	@docker compose run --rm app mix deps.get
+	@mkdir -p lib/beam_flow/{accounts,content,engagement,site,utils}
+	@mkdir -p lib/beam_flow_web/live/{admin,public}
+	@mkdir -p lib/beam_flow_web/components
+	@echo "$(GREEN)Phoenix $(PHOENIX_VERSION) project initialized.$(NC)"
+	@echo "$(GREEN)Run 'make db.setup' to set up the database.$(NC)"
+	@echo "$(GREEN)Run 'make start' to start the application.$(NC)"
+
+# Production build
+release: ## Build a production release
+	@echo "$(GREEN)Building production release...$(NC)"
+	@docker compose exec -e MIX_ENV=prod app mix phx.gen.release
 	@docker compose exec -e MIX_ENV=prod app mix release
-
-## NPM Commands
-npm.install: ## Install NPM dependencies
-	@echo "$(GREEN)Installing NPM dependencies...$(NC)"
-	@docker compose exec app bash -c "cd assets && npm install"
-
-npm.build: ## Build assets
-	@echo "$(GREEN)Building assets...$(NC)"
-	@docker compose exec app bash -c "cd assets && npm run deploy"
-
-## Git Hooks
-hooks.setup: ## Set up git hooks
-	@echo "$(GREEN)Setting up git hooks...$(NC)"
-	@npm install
-	@npm run prepare
-	@chmod +x .husky/pre-commit
-	@chmod +x .husky/commit-msg
-	@chmod +x scripts/elixir-pre-commit.sh
-	@echo "$(GREEN)Hooks installed successfully. Make sure Elixir dependencies are installed with 'make deps'$(NC)"
+	@echo "$(GREEN)Release built. Find it in _build/prod/rel/beam_flow/$(NC)"
