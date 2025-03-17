@@ -15,11 +15,11 @@ defmodule BeamFlow.DataCase do
   """
 
   use ExUnit.CaseTemplate
+  alias Ecto.Adapters.SQL.Sandbox
 
   using do
     quote do
       alias BeamFlow.Repo
-      alias Ecto.Adapters.SQL.Sandbox
 
       import Ecto
       import Ecto.Changeset
