@@ -104,7 +104,7 @@
           # Controversial and experimental checks (opt-in, just remove `, false`)
           #
           {Credo.Check.Design.DuplicatedCode, false},
-          {Credo.Check.Readability.SinglePipe, []},
+          {Credo.Check.Readability.SinglePipe, false},
           {Credo.Check.Consistency.MultiAliasImportRequireUse, []},
           {Credo.Check.Consistency.UnusedVariableNames, []},
           {Credo.Check.Design.SkipTestWithoutComment, []},
@@ -120,7 +120,7 @@
           {Credo.Check.Refactor.NegatedIsNil, []},
           {Credo.Check.Refactor.PipeChainStart, []},
           {Credo.Check.Refactor.RejectFilter, []},
-          {Credo.Check.Refactor.VariableRebinding, []},
+          {Credo.Check.Refactor.VariableRebinding, false},
           {Credo.Check.Warning.LeakyEnvironment, []},
           {Credo.Check.Warning.MapGetUnsafePass, []},
           {Credo.Check.Warning.UnsafeToAtom, []}
