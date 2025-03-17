@@ -30,7 +30,7 @@ defmodule BeamFlow.Accounts.UserToken do
 
   The reason why we store session tokens in the database, even
   though Phoenix already provides a session cookie, is because
-  Phoenix' default session cookies are not persisted, they are
+  Phoenix's default session cookies are not persisted, they are
   simply signed and potentially encrypted. This means they are
   valid indefinitely, unless you change the signing/encryption
   salt.
@@ -51,7 +51,7 @@ defmodule BeamFlow.Accounts.UserToken do
        token: token,
        context: "session",
        user_id: user.id,
-       inserted_at: timestamp_with_days(validity_days)
+       inserted_at: build_token_timestamp(validity_days)
      }}
   end
 
@@ -76,10 +76,12 @@ defmodule BeamFlow.Accounts.UserToken do
   end
 
   @doc """
-  Builds a token and its hash to be delivered to the user's email.
+  Builds a token with a hashed counter part.
 
   The non-hashed token is sent to the user email while the
-  hashed part is stored in the database. The original token cannot be rebuilt.
+  hashed part is stored in the database, to avoid reconstruction.
+  The token is valid for a week as long as users don't change
+  their email.
   """
   def build_email_token(user, context) do
     build_hashed_token(user, context, user.email)
@@ -125,9 +127,21 @@ defmodule BeamFlow.Accounts.UserToken do
     end
   end
 
+  # Alias for backwards compatibility
+  def verify_change_email_token_query(token, context),
+    do: verify_email_token_query(token, context)
+
+  # Fixed implementation to handle "change:" prefixed contexts correctly
   defp days_for_context("confirm"), do: @confirm_validity_in_days
   defp days_for_context("reset_password"), do: @reset_password_validity_in_days
-  defp days_for_context("change_email"), do: @change_email_validity_in_days
+
+  defp days_for_context(context) when is_binary(context) do
+    if String.starts_with?(context, "change:") do
+      @change_email_validity_in_days
+    else
+      raise "unknown context #{inspect(context)}"
+    end
+  end
 
   @doc """
   Returns the token struct for the given token value and context.
@@ -136,15 +150,27 @@ defmodule BeamFlow.Accounts.UserToken do
     from BeamFlow.Accounts.UserToken, where: [token: ^token, context: ^context]
   end
 
+  # Alias for backwards compatibility
+  def by_token_and_context_query(token, context), do: token_and_context_query(token, context)
+
   @doc """
   Gets all tokens for the given user for the given contexts.
   """
+  def user_and_contexts_query(user, :all) do
+    from t in BeamFlow.Accounts.UserToken, where: t.user_id == ^user.id
+  end
+
   def user_and_contexts_query(user, contexts) do
     from t in BeamFlow.Accounts.UserToken, where: t.user_id == ^user.id and t.context in ^contexts
   end
 
-  # Set token expiration in the past for the given validity period
-  defp timestamp_with_days(days) do
-    NaiveDateTime.add(NaiveDateTime.utc_now(), days * 24 * 60 * 60, :second)
+  # Alias for backwards compatibility
+  def by_user_and_contexts_query(user, contexts), do: user_and_contexts_query(user, contexts)
+
+  # Creates a timestamp for the token based on days from now, ensuring microseconds are truncated
+  defp build_token_timestamp(days) do
+    NaiveDateTime.utc_now()
+    |> NaiveDateTime.add(days * 24 * 60 * 60, :second)
+    |> NaiveDateTime.truncate(:second)
   end
 end

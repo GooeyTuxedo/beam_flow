@@ -57,7 +57,8 @@ defmodule BeamFlowWeb.UserResetPasswordLive do
   # leaked token giving the user access to the account.
   def handle_event("reset_password", %{"user" => user_params}, socket) do
     case Accounts.reset_user_password(socket.assigns.user, user_params) do
-      {:ok, _foo} ->
+      {:ok, _user} ->
+        # Use redirect for consistent testing
         {:noreply,
          socket
          |> put_flash(:info, "Password reset successfully.")

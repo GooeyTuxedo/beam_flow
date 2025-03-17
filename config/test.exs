@@ -38,3 +38,10 @@ config :phoenix, :plug_init_mode, :runtime
 # Enable helpful, but potentially expensive runtime checks
 config :phoenix_live_view,
   enable_expensive_runtime_checks: true
+
+# Configure the test watcher to include --trace
+config :beam_flow, :test_watcher,
+  clear: true,
+  trace: true,
+  seed: 0,
+  exclude: [external: true]

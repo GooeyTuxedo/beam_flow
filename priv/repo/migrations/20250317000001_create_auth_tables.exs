@@ -1,17 +1,25 @@
-defmodule BeamFlow.Repo.Migrations.CreateUsers do
-  @moduledoc false
+defmodule BeamFlow.Repo.Migrations.CreateAuthTables do
   use Ecto.Migration
 
-  def change do
+  def up do
+    # Drop existing tables if they exist
+    execute "DROP TABLE IF EXISTS audit_logs CASCADE"
+    execute "DROP TABLE IF EXISTS users_tokens CASCADE"
+    execute "DROP TABLE IF EXISTS users CASCADE"
+
+    execute "CREATE EXTENSION IF NOT EXISTS citext", ""
+
+    # Create users table with explicit columns
     create table(:users) do
-      add :email, :string, null: false
+      add :email, :citext, null: false
+      # Explicitly include name
       add :name, :string, null: false
       add :bio, :text
       add :password_hash, :string, null: false
       add :confirmed_at, :naive_datetime
       add :role, :string, null: false, default: "subscriber"
 
-      timestamps(type: :utc_datetime)
+      timestamps()
     end
 
     create unique_index(:users, [:email])
@@ -43,5 +51,12 @@ defmodule BeamFlow.Repo.Migrations.CreateUsers do
 
     create index(:audit_logs, [:user_id])
     create index(:audit_logs, [:resource_type, :resource_id])
+  end
+
+  def down do
+    drop_if_exists table(:audit_logs)
+    drop_if_exists table(:users_tokens)
+    drop_if_exists table(:users)
+    execute "DROP EXTENSION IF EXISTS citext"
   end
 end

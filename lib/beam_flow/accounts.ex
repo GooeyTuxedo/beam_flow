@@ -6,6 +6,8 @@ defmodule BeamFlow.Accounts do
   import Ecto.Query, warn: false
   alias BeamFlow.Repo
 
+  alias BeamFlow.Accounts.AuditLog
+  alias BeamFlow.Accounts.Auth
   alias BeamFlow.Accounts.User
   alias BeamFlow.Accounts.UserNotifier
   alias BeamFlow.Accounts.UserToken
@@ -76,9 +78,9 @@ defmodule BeamFlow.Accounts do
       {:error, %Ecto.Changeset{}}
 
   """
-  def register_user(attrs) do
+  def register_user(attrs, opts \\ []) do
     %User{}
-    |> User.registration_changeset(attrs)
+    |> User.registration_changeset(attrs, opts)
     |> Repo.insert()
   end
 
@@ -92,7 +94,7 @@ defmodule BeamFlow.Accounts do
 
   """
   def change_user_registration(%User{} = user, attrs \\ %{}) do
-    User.registration_changeset(user, attrs, hash_password: false, validate_email: false)
+    User.registration_changeset(user, attrs, validate_password: false)
   end
 
   ## Settings
@@ -111,17 +113,8 @@ defmodule BeamFlow.Accounts do
   end
 
   @doc """
-  Emulates that the email will change without actually changing
-  it in the database.
-
-  ## Examples
-
-      iex> apply_user_email(user, "valid password", %{email: ...})
-      {:ok, %User{}}
-
-      iex> apply_user_email(user, "invalid password", %{email: ...})
-      {:error, %Ecto.Changeset{}}
-
+  Emulates the updating of a user email in test environments without
+  actually requiring email verification.
   """
   def apply_user_email(user, password, attrs) do
     user
@@ -139,24 +132,25 @@ defmodule BeamFlow.Accounts do
   def update_user_email(user, token) do
     context = "change:#{user.email}"
 
-    with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
-         %UserToken{sent_to: email} <- Repo.one(query),
-         {:ok, _foo} <- Repo.transaction(user_email_multi(user, email, context)) do
-      :ok
+    # Extract the query outside of the with, avoid starting with when
+    {:ok, query} = UserToken.verify_change_email_token_query(token, context)
+
+    with %User{} = queried_user <- Repo.one(query),
+         {:ok, %{user: updated_user}} <- Repo.transaction(user_email_multi(queried_user, context)) do
+      {:ok, updated_user}
     else
-      _err -> :error
+      _unused_pattern -> :error
     end
   end
 
-  defp user_email_multi(user, email, context) do
+  defp user_email_multi(user, context) do
     changeset =
       user
-      |> User.email_changeset(%{email: email})
       |> User.confirm_changeset()
 
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, changeset)
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, [context]))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.user_and_contexts_query(user, [context]))
   end
 
   @doc ~S"""
@@ -164,7 +158,7 @@ defmodule BeamFlow.Accounts do
 
   ## Examples
 
-      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm_email/#{&1}"))
+      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm_email/#{&1})")
       {:ok, %{to: ..., body: ...}}
 
   """
@@ -209,11 +203,11 @@ defmodule BeamFlow.Accounts do
 
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, changeset)
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.user_and_contexts_query(user, :all))
     |> Repo.transaction()
     |> case do
       {:ok, %{user: user}} -> {:ok, user}
-      {:error, :user, changeset, _foo} -> {:error, changeset}
+      {:error, :user, changeset, _unused} -> {:error, changeset}
     end
   end
 
@@ -222,8 +216,8 @@ defmodule BeamFlow.Accounts do
   @doc """
   Generates a session token.
   """
-  def generate_user_session_token(user) do
-    {token, user_token} = UserToken.build_session_token(user)
+  def generate_user_session_token(user, remember_me \\ false) do
+    {token, user_token} = UserToken.build_session_token(user, remember_me)
     Repo.insert!(user_token)
     token
   end
@@ -234,13 +228,16 @@ defmodule BeamFlow.Accounts do
   def get_user_by_session_token(token) do
     {:ok, query} = UserToken.verify_session_token_query(token)
     Repo.one(query)
+  rescue
+    # Handle any db errors gracefully
+    Ecto.Query.CastError -> nil
   end
 
   @doc """
   Deletes the signed token with the given context.
   """
   def delete_user_session_token(token) do
-    Repo.delete_all(UserToken.by_token_and_context_query(token, "session"))
+    Repo.delete_all(UserToken.token_and_context_query(token, "session"))
     :ok
   end
 
@@ -281,14 +278,14 @@ defmodule BeamFlow.Accounts do
          {:ok, %{user: user}} <- Repo.transaction(confirm_user_multi(user)) do
       {:ok, user}
     else
-      _foo -> :error
+      _unused -> :error
     end
   end
 
   defp confirm_user_multi(user) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, User.confirm_changeset(user))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, ["confirm"]))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.user_and_contexts_query(user, ["confirm"]))
   end
 
   ## Reset password
@@ -322,11 +319,12 @@ defmodule BeamFlow.Accounts do
 
   """
   def get_user_by_reset_password_token(token) do
-    with {:ok, query} <- UserToken.verify_email_token_query(token, "reset_password"),
-         %User{} = user <- Repo.one(query) do
+    {:ok, query} = UserToken.verify_email_token_query(token, "reset_password")
+
+    with %User{} = user <- Repo.one(query) do
       user
     else
-      _foo -> nil
+      _unused -> nil
     end
   end
 
@@ -345,11 +343,69 @@ defmodule BeamFlow.Accounts do
   def reset_user_password(user, attrs) do
     Ecto.Multi.new()
     |> Ecto.Multi.update(:user, User.password_changeset(user, attrs))
-    |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, :all))
+    |> Ecto.Multi.delete_all(:tokens, UserToken.user_and_contexts_query(user, :all))
     |> Repo.transaction()
     |> case do
       {:ok, %{user: user}} -> {:ok, user}
-      {:error, :user, changeset, _foo} -> {:error, changeset}
+      {:error, :user, changeset, _unused} -> {:error, changeset}
     end
+  end
+
+  ## User Roles and Authorization
+
+  @doc """
+  Checks if a user has a specific role.
+  """
+  def has_role?(user, role) do
+    Auth.has_role?(user, role)
+  end
+
+  @doc """
+  Checks if a user can perform an action on a resource.
+  """
+  def can?(user, action, resource) do
+    Auth.can?(user, action, resource)
+  end
+
+  @doc """
+  Authorizes an action and returns :ok or {:error, :unauthorized}.
+  """
+  def authorize(user, action, resource) do
+    Auth.authorize(user, action, resource)
+  end
+
+  ## Audit Logging
+
+  @doc """
+  Logs an action performed by a user.
+  """
+  def log_action(action, user_id, opts \\ []) do
+    AuditLog.log_action(Repo, action, user_id, opts)
+  end
+
+  @doc """
+  Gets audit logs for a specific user.
+  """
+  def list_user_logs(user_id, limit \\ 50) do
+    query = AuditLog.list_user_logs(AuditLog, user_id)
+    limited_query = limit(query, ^limit)
+    Repo.all(limited_query)
+  end
+
+  @doc """
+  Gets audit logs for a specific resource.
+  """
+  def list_resource_logs(resource_type, resource_id, limit \\ 50) do
+    query = AuditLog.list_resource_logs(AuditLog, resource_type, resource_id)
+    limited_query = limit(query, ^limit)
+    Repo.all(limited_query)
+  end
+
+  @doc """
+  Gets recent audit logs.
+  """
+  def list_recent_logs(limit \\ 50) do
+    query = AuditLog.list_recent_logs(AuditLog, limit)
+    Repo.all(query)
   end
 end

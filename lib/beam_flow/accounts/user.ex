@@ -13,7 +13,7 @@ defmodule BeamFlow.Accounts.User do
     field :confirmed_at, :naive_datetime
     field :role, Ecto.Enum, values: [:admin, :editor, :author, :subscriber], default: :subscriber
 
-    timestamps(type: :utc_datetime)
+    timestamps()
   end
 
   @doc """
@@ -31,13 +31,22 @@ defmodule BeamFlow.Accounts.User do
       using this changeset for validations on a LiveView form before
       submitting the form), this option can be set to `false`.
       Defaults to `true`.
+    * `:hash_password` - Hashes the password so it can be stored securely
+      in the database and ensures the password field is cleared to prevent
+      leaks in the logs. If password hashing is not needed and clearing the
+      password field is not desired (like when using this changeset for
+      validations on a LiveView form before submitting the form), this option
+      can be set to `false`. Defaults to `true`.
+    * `:validate_password` - Validates the password strength according to
+      the configured strength level. Set to `false` to skip this validation
+      (useful during tests). Defaults to `true`.
   """
   def registration_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email, :name, :password, :role])
     |> validate_email(opts)
     |> validate_name()
-    |> validate_password()
+    |> validate_password(opts)
   end
 
   defp validate_name(changeset) do
@@ -54,29 +63,45 @@ defmodule BeamFlow.Accounts.User do
     |> maybe_validate_unique_email(opts)
   end
 
-  defp validate_password(changeset) do
+  defp validate_password(changeset, opts) do
     changeset
     |> validate_required([:password])
     |> validate_length(:password, min: 12, max: 72)
-    # Examples of additional password validation criteria
-    |> validate_format(:password, ~r/[a-z]/,
-      message: "must have at least one lowercase character"
-    )
-    |> validate_format(:password, ~r/[A-Z]/,
-      message: "must have at least one uppercase character"
-    )
-    |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/,
-      message: "must have at least one symbol"
-    )
-    |> prepare_changes(&hash_password/1)
+    |> maybe_validate_password_strength(opts)
+    |> maybe_hash_password(opts)
   end
 
-  defp hash_password(changeset) do
+  defp maybe_validate_password_strength(changeset, opts) do
+    validate_password_strength = Keyword.get(opts, :validate_password, true)
+
+    if validate_password_strength do
+      changeset
+      |> validate_format(:password, ~r/[a-z]/,
+        message: "must have at least one lowercase character"
+      )
+      |> validate_format(:password, ~r/[A-Z]/,
+        message: "must have at least one uppercase character"
+      )
+      |> validate_format(:password, ~r/[!@#$%^&*(),.?":{}|<>]/,
+        message: "must have at least one symbol"
+      )
+    else
+      changeset
+    end
+  end
+
+  defp maybe_hash_password(changeset, opts) do
+    hash_password? = Keyword.get(opts, :hash_password, true)
     password = get_change(changeset, :password)
 
-    changeset
-    |> put_change(:password_hash, Argon2.hash_pwd_salt(password))
-    |> delete_change(:password)
+    if hash_password? && password && changeset.valid? do
+      changeset
+      # Using Argon2 for password hashing
+      |> put_change(:password_hash, Argon2.hash_pwd_salt(password))
+      |> delete_change(:password)
+    else
+      changeset
+    end
   end
 
   defp maybe_validate_unique_email(changeset, opts) do
@@ -106,12 +131,21 @@ defmodule BeamFlow.Accounts.User do
 
   @doc """
   A user changeset for changing the password.
+
+  ## Options
+
+  * `:hash_password` - Hashes the password so it can be stored securely
+    in the database and ensures the password field is cleared to prevent
+    leaks in the logs. If password hashing is not needed and clearing the
+    password field is not desired (like when using this changeset for
+    validations on a LiveView form before submitting the form), this option
+    can be set to `false`. Defaults to `true`.
   """
-  def password_changeset(user, attrs) do
+  def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
     |> validate_confirmation(:password, message: "does not match password")
-    |> validate_password()
+    |> validate_password(opts)
   end
 
   @doc """
@@ -143,13 +177,16 @@ defmodule BeamFlow.Accounts.User do
 
   @doc """
   Verifies the password.
+
+  If there is no user or the user doesn't have a password, we call
+  `Argon2.no_user_verify/0` to avoid timing attacks.
   """
   def valid_password?(%BeamFlow.Accounts.User{password_hash: password_hash}, password)
       when is_binary(password_hash) and byte_size(password) > 0 do
     Argon2.verify_pass(password, password_hash)
   end
 
-  def valid_password?(_foo, _bar) do
+  def valid_password?(_user, _password) do
     Argon2.no_user_verify()
     false
   end

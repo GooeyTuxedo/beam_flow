@@ -16,6 +16,8 @@ defmodule BeamFlow.Application do
       {Finch, name: BeamFlow.Finch},
       # Start a worker by calling: BeamFlow.Worker.start_link(arg)
       # {BeamFlow.Worker, arg},
+      # Start the rate limiter for login attempts
+      {BeamFlow.Accounts.RateLimiter, []},
       # Start to serve requests, typically the last entry
       BeamFlowWeb.Endpoint
     ]

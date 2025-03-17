@@ -18,6 +18,10 @@ defmodule BeamFlowWeb.UserSettingsLive do
           phx-submit="update_email"
           phx-change="validate_email"
         >
+          <.error :if={@email_form_current_password != nil && @email_form.errors != []}>
+            Oops, something went wrong! Please check the errors below.
+          </.error>
+
           <.input field={@email_form[:email]} type="email" label="Email" required />
           <.input
             field={@email_form[:current_password]}
@@ -43,6 +47,10 @@ defmodule BeamFlowWeb.UserSettingsLive do
           phx-submit="update_password"
           phx-trigger-action={@trigger_submit}
         >
+          <.error :if={@password_form.errors != []}>
+            Oops, something went wrong! Please check the errors below.
+          </.error>
+
           <input
             name={@password_form[:email].name}
             type="hidden"
@@ -76,7 +84,7 @@ defmodule BeamFlowWeb.UserSettingsLive do
   def mount(%{"token" => token}, _session, socket) do
     socket =
       case Accounts.update_user_email(socket.assigns.current_user, token) do
-        :ok ->
+        {:ok, _user} ->
           put_flash(socket, :info, "Email changed successfully.")
 
         :error ->
@@ -127,11 +135,16 @@ defmodule BeamFlowWeb.UserSettingsLive do
           &url(~p"/users/settings/confirm_email/#{&1}")
         )
 
-        info = "A link to confirm your email change has been sent to the new address."
-        {:noreply, socket |> put_flash(:info, info) |> assign(email_form_current_password: nil)}
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           "A link to confirm your email change has been sent to the new address."
+         )
+         |> assign(email_form_current_password: nil)}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, :email_form, to_form(Map.put(changeset, :action, :insert)))}
+        {:noreply, assign(socket, email_form: to_form(Map.put(changeset, :action, :insert)))}
     end
   end
 
@@ -152,16 +165,15 @@ defmodule BeamFlowWeb.UserSettingsLive do
     user = socket.assigns.current_user
 
     case Accounts.update_user_password(user, password, user_params) do
-      {:ok, user} ->
-        password_form =
-          user
-          |> Accounts.change_user_password(user_params)
-          |> to_form()
-
-        {:noreply, assign(socket, trigger_submit: true, password_form: password_form)}
+      {:ok, _user} ->
+        {:noreply,
+         socket
+         |> assign(trigger_submit: true)
+         |> assign(password_form: to_form(Accounts.change_user_password(user)))
+         |> assign(current_password: nil)}
 
       {:error, changeset} ->
-        {:noreply, assign(socket, password_form: to_form(changeset))}
+        {:noreply, assign(socket, password_form: to_form(Map.put(changeset, :action, :insert)))}
     end
   end
 end

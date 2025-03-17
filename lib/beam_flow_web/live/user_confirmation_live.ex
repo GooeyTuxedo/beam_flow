@@ -32,7 +32,7 @@ defmodule BeamFlowWeb.UserConfirmationLive do
   # leaked token giving the user access to the account.
   def handle_event("confirm_account", %{"user" => %{"token" => token}}, socket) do
     case Accounts.confirm_user(token) do
-      {:ok, _foo} ->
+      {:ok, _user} ->
         {:noreply,
          socket
          |> put_flash(:info, "User confirmed successfully.")
@@ -44,14 +44,14 @@ defmodule BeamFlowWeb.UserConfirmationLive do
         # by some automation or by the user themselves, so we redirect without
         # a warning message.
         case socket.assigns do
+          %{current_user: %{confirmed_at: confirmed_at}} when confirmed_at != nil ->
+            {:noreply, redirect(socket, to: ~p"/")}
+
           %{current_user: %{confirmed_at: nil}} ->
             {:noreply,
              socket
              |> put_flash(:error, "User confirmation link is invalid or it has expired.")
              |> redirect(to: ~p"/")}
-
-          %{current_user: %{confirmed_at: confirmed_at}} ->
-            {:noreply, redirect(socket, to: ~p"/")}
 
           %{} ->
             {:noreply,
