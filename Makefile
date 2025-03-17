@@ -1,5 +1,6 @@
 .PHONY: help setup start stop restart build shell logs \
 	deps compile clean format lint test test.watch \
+	test.coverage test.coverage.open test.coverage.console test.coverage.detail \
 	db.setup db.reset db.migrate db.rollback \
 	routes gen.context gen.schema gen.live gen.auth release
 
@@ -73,6 +74,22 @@ test: ## Run tests
 test.watch: ## Run tests in watch mode
 	@echo "$(GREEN)Running tests in watch mode...$(NC)"
 	@docker compose exec app mix test.watch
+
+# Run tests with coverage report
+test.coverage:
+	docker-compose exec app mix coveralls.html
+
+# Open coverage report in browser (macOS)
+test.coverage.open: test.coverage
+	open cover/excoveralls.html
+
+# Run tests with coverage and display results in terminal
+test.coverage.console:
+	docker-compose exec app mix coveralls
+
+# Run tests with detailed coverage information
+test.coverage.detail:
+	docker-compose exec app mix coveralls.detail
 
 # Database commands
 db.setup: ## Set up the database

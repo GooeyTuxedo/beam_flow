@@ -5,17 +5,30 @@ defmodule BeamFlow.MixProject do
     [
       app: :beam_flow,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      # Add ExCoveralls configuration
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test
+      ],
+      # Define coverage thresholds
+      excoveralls: [
+        minimum_coverage: 90,
+        terminal_output: "console",
+        skip_files: []
+      ]
     ]
   end
 
   # Configuration for the OTP application.
-  #
-  # Type `mix help compile.app` for more information.
   def application do
     [
       mod: {BeamFlow.Application, []},
@@ -28,8 +41,6 @@ defmodule BeamFlow.MixProject do
   defp elixirc_paths(_else), do: ["lib"]
 
   # Specifies your project dependencies.
-  #
-  # Type `mix help deps` for examples and options.
   defp deps do
     [
       {:phoenix, "~> 1.7.20"},
@@ -37,7 +48,7 @@ defmodule BeamFlow.MixProject do
       {:ecto_sql, "~> 3.10"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_live_reload, "~> 1.4", only: :dev},
       {:phoenix_live_view, "~> 1.0.0"},
       {:floki, ">= 0.30.0", only: :test},
       {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
@@ -57,17 +68,19 @@ defmodule BeamFlow.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.5"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+
+      # Add ExCoveralls dependency
+      {:excoveralls, "~> 0.18", only: :test},
+
+      # Add Argon2 for password hashing
+      {:argon2_elixir, "~> 4.0"},
+
+      # Add Credo for code quality checks
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 
   # Aliases are shortcuts or tasks specific to the current project.
-  # For example, to install project dependencies and perform other setup tasks, run:
-  #
-  #     $ mix setup
-  #
-  # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
@@ -83,7 +96,11 @@ defmodule BeamFlow.MixProject do
       ],
       lint: ["format", "credo --strict"],
       "lint.ci": ["format --check-formatted", "credo --strict"],
-      dialyzer: ["dialyzer"]
+      # Add coverage aliases
+      "test.coverage": ["test --cover"],
+      coveralls: ["coveralls"],
+      "coveralls.html": ["coveralls.html"],
+      "coveralls.json": ["coveralls.json"]
     ]
   end
 end

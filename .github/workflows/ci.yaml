@@ -56,10 +56,16 @@ jobs:
         run: mix credo --strict
 
       - name: Run tests
-        run: mix test
+        run: mix coveralls.json
         env:
           MIX_ENV: test
           DATABASE_URL: ecto://postgres:postgres@localhost/beam_flow_test
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./cover/excoveralls.json
+          fail_ci_if_error: true
 
   build:
     needs: test
