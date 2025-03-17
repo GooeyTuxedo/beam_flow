@@ -25,7 +25,7 @@ defmodule BeamFlow.AccountsFixtures do
 
   def extract_user_token(fun) do
     {:ok, captured_email} = fun.(&"[TOKEN]#{&1}[TOKEN]")
-    [_foo, token | _foo] = String.split(captured_email.text_body, "[TOKEN]")
+    [_foo, token | _bar] = String.split(captured_email.text_body, "[TOKEN]")
     token
   end
 end

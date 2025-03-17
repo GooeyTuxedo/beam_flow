@@ -14,8 +14,6 @@ defmodule BeamFlowWeb.Plugs.Authorize do
   """
 
   import Plug.Conn
-  import Phoenix.Controller
-  import Phoenix.LiveView
 
   alias BeamFlow.Accounts.AuditLog
   alias BeamFlow.Accounts.Auth
@@ -30,8 +28,8 @@ defmodule BeamFlowWeb.Plugs.Authorize do
       conn
     else
       conn
-      |> put_flash(:error, "Unauthorized access")
-      |> redirect(to: "/")
+      |> Phoenix.Controller.put_flash(:error, "Unauthorized access")
+      |> Phoenix.Controller.redirect(to: "/")
       |> halt()
     end
   end
@@ -47,8 +45,8 @@ defmodule BeamFlowWeb.Plugs.Authorize do
     else
       socket =
         socket
-        |> put_flash(:error, "Unauthorized access")
-        |> redirect(to: "/")
+        |> Phoenix.LiveView.put_flash(:error, "Unauthorized access")
+        |> Phoenix.LiveView.redirect(to: "/")
 
       {:halt, socket}
     end
@@ -99,7 +97,7 @@ defmodule BeamFlowWeb.Plugs.Authorize do
         {:ok, socket}
 
       {:error, :unauthorized} ->
-        {:error, put_flash(socket, :error, "Unauthorized action")}
+        {:error, Phoenix.LiveView.put_flash(socket, :error, "Unauthorized action")}
     end
   end
 

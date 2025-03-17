@@ -68,7 +68,7 @@ defmodule BeamFlow.Accounts.RateLimiter do
   @impl true
   def handle_call({:check_rate_limit, key, max_attempts, interval}, _from, state) do
     case :ets.lookup(:login_attempts, key) do
-      [{^key, attempts, timestamps}] ->
+      [{^key, _attempts, timestamps}] ->
         # Filter timestamps to only include those within the interval
         now = System.system_time(:second)
         valid_timestamps = Enum.filter(timestamps, &(&1 > now - interval))
