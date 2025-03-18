@@ -87,7 +87,7 @@ defmodule BeamFlowWeb.Router do
     live_session :admin_area,
       on_mount: [
         {BeamFlowWeb.UserAuth, :ensure_authenticated},
-        {BeamFlowWeb.LiveAuth, :ensure_admin},
+        {BeamFlowWeb.LiveAuth, {:ensure_role, :admin}},
         {BeamFlowWeb.LiveAuth, :audit_access}
       ] do
       live "/", DashboardLive, :index
@@ -118,7 +118,7 @@ defmodule BeamFlowWeb.Router do
     live_session :editor_area,
       on_mount: [
         {BeamFlowWeb.UserAuth, :ensure_authenticated},
-        {BeamFlowWeb.LiveAuth, :ensure_editor},
+        {BeamFlowWeb.LiveAuth, {:ensure_role, :editor}},
         {BeamFlowWeb.LiveAuth, :audit_access}
       ] do
       live "/", DashboardLive, :index
@@ -134,7 +134,7 @@ defmodule BeamFlowWeb.Router do
     live_session :author_area,
       on_mount: [
         {BeamFlowWeb.UserAuth, :ensure_authenticated},
-        {BeamFlowWeb.LiveAuth, :ensure_author},
+        {BeamFlowWeb.LiveAuth, {:ensure_role, :author}},
         {BeamFlowWeb.LiveAuth, :audit_access}
       ] do
       live "/", DashboardLive, :index

@@ -16,6 +16,7 @@ defmodule BeamFlowWeb.Plugs.Authorize do
   import Plug.Conn
 
   alias BeamFlow.Accounts.AuditLog
+  alias BeamFlow.Accounts.Auth
   alias BeamFlow.Roles
 
   # For use in controllers

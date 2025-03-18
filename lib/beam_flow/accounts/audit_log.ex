@@ -20,10 +20,61 @@ defmodule BeamFlow.Accounts.AuditLog do
   Creates a changeset for an audit log entry.
   """
   def changeset(audit_log, attrs) do
+    # Convert string keys to atoms throughout the metadata structure
+    # to ensure consistent access patterns
+    processed_attrs = process_metadata(attrs)
+
     audit_log
-    |> cast(attrs, [:action, :user_id, :ip_address, :metadata, :resource_id, :resource_type])
+    |> cast(processed_attrs, [
+      :action,
+      :user_id,
+      :ip_address,
+      :metadata,
+      :resource_id,
+      :resource_type
+    ])
     |> validate_required([:action])
   end
+
+  # Process metadata to ensure consistent structure
+  defp process_metadata(attrs) do
+    metadata = attrs[:metadata] || attrs["metadata"] || %{}
+
+    # Convert to map with string keys if it isn't already
+    metadata =
+      if is_map(metadata) do
+        metadata
+      else
+        %{}
+      end
+
+    # Store metadata with string keys for Postgres compatibility
+    # but preserve nested structure
+    processed_metadata = deep_stringify_keys(metadata)
+
+    # Update attrs
+    case attrs do
+      %{metadata: _data} -> %{attrs | metadata: processed_metadata}
+      %{"metadata" => _data} -> %{attrs | "metadata" => processed_metadata}
+      _rest -> Map.put(attrs, :metadata, processed_metadata)
+    end
+  end
+
+  # Convert all keys in a nested map to strings
+  defp deep_stringify_keys(map) when is_map(map) do
+    map
+    |> Enum.map(fn
+      {k, v} when is_map(v) -> {to_string(k), deep_stringify_keys(v)}
+      {k, v} when is_list(v) -> {to_string(k), Enum.map(v, &stringify_list_item/1)}
+      {k, v} -> {to_string(k), v}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp deep_stringify_keys(not_map), do: not_map
+
+  defp stringify_list_item(item) when is_map(item), do: deep_stringify_keys(item)
+  defp stringify_list_item(item), do: item
 
   @doc """
   Logs an action performed by a user.
@@ -61,7 +112,7 @@ defmodule BeamFlow.Accounts.AuditLog do
   @doc """
   Returns the list of recent audit logs.
   """
-  def list_recent_logs(query \\ __MODULE__, limit \\ 50) do
+  def list_recent_logs(query \\ __MODULE__, limit \\ 50) when is_integer(limit) do
     from(l in query, order_by: [desc: l.inserted_at], limit: ^limit)
   end
 end

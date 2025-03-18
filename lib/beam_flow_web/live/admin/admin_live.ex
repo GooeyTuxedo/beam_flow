@@ -9,7 +9,7 @@ defmodule BeamFlowWeb.Admin.AdminLive do
   use BeamFlowWeb, :live_view
 
   # Apply the admin role check to all admin LiveViews
-  on_mount {BeamFlowWeb.LiveAuth, :ensure_admin}
+  on_mount {BeamFlowWeb.LiveAuth, {:ensure_role, :admin}}
 
   @impl true
   def render(assigns) do

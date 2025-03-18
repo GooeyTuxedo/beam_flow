@@ -221,7 +221,7 @@ defmodule BeamFlow.AccountsTest do
       assert log.action == "login"
       assert log.user_id == user.id
       assert log.ip_address == "127.0.0.1"
-      assert log.metadata == %{success: true}
+      assert log.metadata == %{"success" => true}
     end
 
     test "list_user_logs returns logs for a specific user" do

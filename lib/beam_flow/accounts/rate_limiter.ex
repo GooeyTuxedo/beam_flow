@@ -57,7 +57,7 @@ defmodule BeamFlow.Accounts.RateLimiter do
   @impl true
   def init(:ok) do
     # Create ETS table for storing login attempts
-    table = :ets.new(:login_attempts, [:set, :protected, :named_table])
+    table = :ets.new(:login_attempts, [:set, :public, :named_table])
 
     # Start a periodic task to clean up old entries
     schedule_cleanup()
@@ -134,8 +134,62 @@ defmodule BeamFlow.Accounts.RateLimiter do
     {:noreply, state}
   end
 
+  # Test helper messages
+  @impl true
+  def handle_info(:test_age_timestamps, state) do
+    # Age all timestamps by moving them back a day
+    now = System.system_time(:second)
+    one_day_ago = now - 86_400
+
+    :ets.foldl(
+      fn {key, attempts, timestamps}, _acc ->
+        # Age all timestamps by at least 10 minutes (600 seconds)
+        aged_timestamps = Enum.map(timestamps, fn _key -> one_day_ago end)
+        :ets.insert(:login_attempts, {key, attempts, aged_timestamps})
+      end,
+      nil,
+      :login_attempts
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:test_age_key, key, seconds}, state) do
+    case :ets.lookup(:login_attempts, key) do
+      [{^key, attempts, timestamps}] ->
+        now = System.system_time(:second)
+        aged_timestamps = Enum.map(timestamps, fn _key -> now - seconds end)
+        :ets.insert(:login_attempts, {key, attempts, aged_timestamps})
+
+      [] ->
+        :ok
+    end
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:test_age_some_timestamps, key}, state) do
+    case :ets.lookup(:login_attempts, key) do
+      [{^key, attempts, timestamps}] ->
+        now = System.system_time(:second)
+
+        # Age half the timestamps by 10 minutes
+        {recent, to_age} = Enum.split(timestamps, div(length(timestamps), 2))
+        aged = Enum.map(to_age, fn _key -> now - 600 end)
+
+        :ets.insert(:login_attempts, {key, attempts, recent ++ aged})
+
+      [] ->
+        :ok
+    end
+
+    {:noreply, state}
+  end
+
   defp schedule_cleanup do
     # Run cleanup every hour
-    Process.send_after(self(), :cleanup, 3600 * 1000)
+    Process.send_after(self(), :cleanup, 3_600 * 1_000)
   end
 end
