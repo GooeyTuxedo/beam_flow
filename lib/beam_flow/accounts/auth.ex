@@ -4,6 +4,7 @@ defmodule BeamFlow.Accounts.Auth do
   """
 
   alias BeamFlow.Accounts.User
+  alias BeamFlow.Roles
 
   @doc """
   Checks if a user has a specific role or higher.
@@ -14,27 +15,10 @@ defmodule BeamFlow.Accounts.Auth do
   - author
   - subscriber
   """
-  def has_role?(nil, _role), do: false
-
-  def has_role?(%User{role: user_role}, required_role) do
-    role_hierarchy = %{
-      admin: 4,
-      editor: 3,
-      author: 2,
-      subscriber: 1
-    }
-
-    role_hierarchy[user_role] >= role_hierarchy[required_role]
-  end
+  def has_role?(user, role), do: Roles.has_role?(user, role)
 
   @doc """
   Checks if a user can perform a specific action on a resource.
-
-  Default permissions:
-  - admin: can do everything
-  - editor: can edit all content and manage authors/subscribers
-  - author: can create and edit own content
-  - subscriber: can view content and manage own profile
   """
   def can?(nil, _action, _resource), do: false
   def can?(%User{role: :admin}, _action, _resource), do: true

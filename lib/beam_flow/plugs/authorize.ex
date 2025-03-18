@@ -16,7 +16,7 @@ defmodule BeamFlowWeb.Plugs.Authorize do
   import Plug.Conn
 
   alias BeamFlow.Accounts.AuditLog
-  alias BeamFlow.Accounts.Auth
+  alias BeamFlow.Roles
 
   # For use in controllers
   def init(role), do: role
@@ -24,7 +24,7 @@ defmodule BeamFlowWeb.Plugs.Authorize do
   def call(conn, role) do
     user = conn.assigns.current_user
 
-    if Auth.has_role?(user, role) do
+    if Roles.has_role?(user, role) do
       conn
     else
       conn
@@ -40,7 +40,7 @@ defmodule BeamFlowWeb.Plugs.Authorize do
 
     user = BeamFlow.Accounts.get_user_by_session_token(user_token)
 
-    if Auth.has_role?(user, role) do
+    if Roles.has_role?(user, role) do
       {:cont, assign(socket, :current_user, user)}
     else
       socket =

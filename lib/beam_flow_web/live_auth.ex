@@ -19,6 +19,7 @@ defmodule BeamFlowWeb.LiveAuth do
   import Phoenix.Component
 
   alias BeamFlow.Accounts
+  alias BeamFlow.Roles
 
   ## Ensures the current user has admin role.
   def on_mount(:ensure_admin, _params, session, socket) do
@@ -35,9 +36,25 @@ defmodule BeamFlowWeb.LiveAuth do
     authorize_role(socket, session, :author)
   end
 
-  ## Ensures the current user has at least the specified role.
-  def on_mount({:ensure_role, role}, _params, session, socket) do
-    authorize_role(socket, session, role)
+  # Ensures a specific role for the current user
+  def on_mount(
+        {:ensure_role, required_role},
+        _params,
+        %{"user_token" => user_token} = _session,
+        socket
+      ) do
+    socket = assign_current_user(socket, user_token)
+
+    if socket.assigns.current_user && Roles.has_role?(socket.assigns.current_user, required_role) do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> put_flash(:error, "You don't have permission to access this page.")
+        |> redirect(to: "/")
+
+      {:halt, socket}
+    end
   end
 
   ## Logs the current action for auditing purposes.

@@ -357,7 +357,7 @@ defmodule BeamFlow.Accounts do
   Checks if a user has a specific role.
   """
   def has_role?(user, role) do
-    Auth.has_role?(user, role)
+    BeamFlow.Roles.has_role?(user, role)
   end
 
   @doc """
