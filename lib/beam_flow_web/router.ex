@@ -96,12 +96,12 @@ defmodule BeamFlowWeb.Router do
       live "/users/:id/edit", UserLive.Index, :edit
       live "/users/:id", UserLive.Show, :show
 
-      # These routes will be implemented later as we build features
-      # live "/posts", PostLive.Index, :index
-      # live "/posts/new", PostLive.Index, :new
-      # live "/posts/:id/edit", PostLive.Index, :edit
-      # live "/posts/:id", PostLive.Show, :show
+      live "/posts", PostLive.Index, :index
+      live "/posts/new", PostLive.Index, :new
+      live "/posts/:id/edit", PostLive.Index, :edit
+      live "/posts/:id", PostLive.Show, :show
 
+      # These routes will be implemented later as we build features
       # live "/categories", CategoryLive.Index, :index
       # live "/tags", TagLive.Index, :index
       # live "/media", MediaLive.Index, :index

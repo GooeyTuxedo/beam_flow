@@ -1,9 +1,16 @@
 defmodule BeamFlowWeb.Admin.DashboardLive do
   use BeamFlowWeb, :live_view
 
+  alias BeamFlow.Content
+
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Admin Dashboard")}
+    post_count = length(Content.list_posts())
+
+    {:ok,
+     socket
+     |> assign(:page_title, "Admin Dashboard")
+     |> assign(:post_count, post_count)}
   end
 
   @impl true
@@ -55,9 +62,9 @@ defmodule BeamFlowWeb.Admin.DashboardLive do
         />
         <.dashboard_card
           title="Posts"
-          count={0}
+          count={@post_count}
           icon_path="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-          link="#"
+          link={~p"/admin/posts"}
         />
         <.dashboard_card
           title="Comments"

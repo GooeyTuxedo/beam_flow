@@ -125,10 +125,6 @@ gen.live: ## Generate a LiveView CRUD interface (e.g. make gen.live name=admin/p
 	@echo "$(GREEN)Generating LiveView CRUD...$(NC)"
 	@docker compose exec app mix phx.gen.live $(name) $(schema) $(fields)
 
-gen.auth: ## Generate authentication system
-	@echo "$(GREEN)Generating authentication system...$(NC)"
-	@docker compose exec app mix phx.gen.auth Accounts User users
-
 # Project initialization
 init: ## Initialize a fresh Phoenix project
 	@echo "$(GREEN)Initializing fresh Phoenix project...$(NC)"

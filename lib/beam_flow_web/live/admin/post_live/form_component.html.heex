@@ -1,0 +1,103 @@
+<div
+  class="fixed inset-0 overflow-y-auto"
+  aria-labelledby={"#{@id}-title"}
+  role="dialog"
+  aria-modal="true"
+>
+  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div
+      class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+      aria-hidden="true"
+      phx-click="close"
+    >
+    </div>
+
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="sm:flex sm:items-start">
+          <div class="w-full">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id={"#{@id}-title"}>
+              {@title}
+            </h3>
+
+            <.simple_form
+              for={@changeset}
+              id="post-form"
+              phx-target={@myself}
+              phx-change="validate"
+              phx-submit="save"
+            >
+              <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div class="sm:col-span-6">
+                  <.input field={@changeset[:title]} type="text" label="Title" />
+                </div>
+
+                <div class="sm:col-span-6">
+                  <.input
+                    field={@changeset[:slug]}
+                    type="text"
+                    label="Slug"
+                    placeholder="Leave blank to auto-generate from title"
+                  />
+                  <p class="mt-1 text-sm text-gray-500">
+                    URL-friendly identifier. Will be auto-generated if left blank.
+                  </p>
+                </div>
+
+                <div class="sm:col-span-6">
+                  <.input field={@changeset[:excerpt]} type="textarea" label="Excerpt" rows={2} />
+                  <p class="mt-1 text-sm text-gray-500">
+                    Brief summary of the post, used in listings and SEO.
+                  </p>
+                </div>
+
+                <div class="sm:col-span-6">
+                  <.input
+                    field={@changeset[:content]}
+                    type="textarea"
+                    label="Content"
+                    rows={12}
+                    placeholder="Write your post content in Markdown format"
+                  />
+                  <p class="mt-1 text-sm text-gray-500">
+                    Write your post content using Markdown. A rich editor will be available in future updates.
+                  </p>
+                </div>
+
+                <div class="sm:col-span-3">
+                  <.input
+                    field={@changeset[:status]}
+                    type="select"
+                    label="Status"
+                    options={@status_options}
+                    phx-click="toggle-scheduled"
+                  />
+                </div>
+
+                <%= if Ecto.Changeset.get_field(@changeset, :status) == "scheduled" || @scheduled_at do %>
+                  <div class="sm:col-span-3">
+                    <.input
+                      field={@changeset[:published_at]}
+                      type="datetime-local"
+                      label="Publish on"
+                    />
+                  </div>
+                <% end %>
+              </div>
+
+              <:actions>
+                <.link
+                  patch={@return_to}
+                  class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cancel
+                </.link>
+                <.button type="submit" class="ml-3">Save</.button>
+              </:actions>
+            </.simple_form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
