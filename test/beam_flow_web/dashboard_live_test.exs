@@ -8,11 +8,11 @@ defmodule BeamFlowWeb.DashboardLiveTest do
     setup [:create_user_and_log_in_as_admin]
 
     test "renders dashboard elements", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/admin")
+      {:ok, view, html} = live(conn, "/admin")
 
       # Test that dashboard shows the expected sections
-      assert has_element?(view, "h1", "Admin Dashboard")
-      assert has_element?(view, "h2", "Recent Activity")
+      assert html =~ "Admin Dashboard"
+      assert has_element?(view, "h3", "Recent Activity")
 
       # Test dashboard cards
       assert has_element?(view, "[data-test-id='dashboard-card']", "Users")

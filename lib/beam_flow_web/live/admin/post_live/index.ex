@@ -1,10 +1,10 @@
 defmodule BeamFlowWeb.Admin.PostLive.Index do
   use BeamFlowWeb, :live_view
 
+  import BeamFlowWeb.AdminComponents
   alias BeamFlow.Content
   alias BeamFlow.Content.Post
   alias BeamFlow.Roles
-  alias BeamFlowWeb.Admin.PostLive.Helpers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -89,6 +89,165 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
      |> assign_posts()}
   end
 
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <.section_header title="Posts" subtitle="Manage your blog content">
+        <:actions>
+          <%= if Roles.has_role?(@current_user, :author) do %>
+            <.btn_primary patch={~p"/admin/posts/new"}>
+              <.icon name="hero-plus" class="w-5 h-5 mr-2" /> New Post
+            </.btn_primary>
+          <% end %>
+        </:actions>
+      </.section_header>
+
+      <.panel title="Filter Posts" class="mb-8">
+        <form phx-change="filter">
+          <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+            <div class="sm:col-span-2">
+              <label for="filter_status" class="block text-sm font-medium text-gray-700">
+                Status
+              </label>
+              <select
+                id="filter_status"
+                name="filter[status]"
+                class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="">All</option>
+                <option value="draft" selected={@filter["status"] == "draft"}>Draft</option>
+                <option value="published" selected={@filter["status"] == "published"}>
+                  Published
+                </option>
+                <option value="scheduled" selected={@filter["status"] == "scheduled"}>
+                  Scheduled
+                </option>
+              </select>
+            </div>
+
+            <div class="sm:col-span-4">
+              <label for="filter_search" class="block text-sm font-medium text-gray-700">
+                Search
+              </label>
+              <div class="mt-1 flex rounded-md shadow-sm">
+                <input
+                  type="text"
+                  name="filter[search]"
+                  id="filter_search"
+                  value={@filter["search"]}
+                  class="flex-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full min-w-0 rounded-md sm:text-sm border-gray-300"
+                  placeholder="Search by title or content"
+                />
+              </div>
+            </div>
+          </div>
+        </form>
+      </.panel>
+
+      <.panel>
+        <ul role="list" class="divide-y divide-gray-200">
+          <%= for post <- @posts do %>
+            <li>
+              <div class="px-4 py-4 flex items-center sm:px-6">
+                <div class="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <div class="flex text-sm">
+                      <p class="font-medium text-indigo-600 truncate">{post.title}</p>
+                      <p class="ml-1 flex-shrink-0 font-normal text-gray-500">
+                        <span class={[
+                          "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
+                          status_badge_color(post.status)
+                        ]}>
+                          {post.status}
+                        </span>
+                      </p>
+                    </div>
+                    <div class="mt-2 flex">
+                      <div class="flex items-center text-sm text-gray-500">
+                        <p>
+                          By {post.user.name}
+                          <span class="mx-1">&middot;</span>
+                          Created {format_date(post.inserted_at)}
+                          <%= if post.published_at do %>
+                            <span class="mx-1">&middot;</span>
+                            Published {format_date(post.published_at)}
+                          <% end %>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5">
+                    <div class="flex overflow-hidden">
+                      <%= if Roles.has_role?(@current_user, :editor) || (@current_user.id == post.user_id && Roles.has_role?(@current_user, :author)) do %>
+                        <.link
+                          patch={~p"/admin/posts/#{post.id}/edit"}
+                          class="text-indigo-600 hover:text-indigo-900 mr-3"
+                        >
+                          <span>Edit</span>
+                        </.link>
+                      <% end %>
+
+                      <%= if (Roles.has_role?(@current_user, :editor) || @current_user.id == post.user_id) && post.status == "draft" do %>
+                        <a
+                          href="#"
+                          phx-click="publish"
+                          phx-value-id={post.id}
+                          data-confirm="Are you sure you want to publish this post?"
+                          class="text-green-600 hover:text-green-900 mr-3"
+                        >
+                          <span>Publish</span>
+                        </a>
+                      <% end %>
+
+                      <%= if Roles.has_role?(@current_user, :editor) || (@current_user.id == post.user_id && Roles.has_role?(@current_user, :author)) do %>
+                        <a
+                          href="#"
+                          phx-click="delete"
+                          phx-value-id={post.id}
+                          data-confirm="Are you sure you want to delete this post?"
+                          class="text-red-600 hover:text-red-900"
+                        >
+                          <span>Delete</span>
+                        </a>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+          <% end %>
+
+          <%= if Enum.empty?(@posts) do %>
+            <li>
+              <div class="px-4 py-8 text-center text-gray-500">
+                No posts found.
+                <%= if @filter["status"] || @filter["search"] do %>
+                  Try adjusting your filters.
+                <% end %>
+              </div>
+            </li>
+          <% end %>
+        </ul>
+      </.panel>
+    </div>
+
+    <%= if @live_action in [:new, :edit] do %>
+      <.modal id="post-modal" show on_cancel={JS.patch(~p"/admin/posts")}>
+        <.live_component
+          module={BeamFlowWeb.Admin.PostLive.FormComponent}
+          id={@post.id || :new}
+          title={@page_title}
+          action={@live_action}
+          post={@post}
+          current_user={@current_user}
+          return_to={~p"/admin/posts"}
+        />
+      </.modal>
+    <% end %>
+    """
+  end
+
   defp assign_posts(socket) do
     socket = BeamFlowWeb.LiveAuth.assign_user_roles(socket)
 
@@ -123,11 +282,26 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
         do: [{:search, filter["search"]} | criteria],
         else: criteria
 
-    # If the user doesn't have admin or editor privileges, only show their posts
-    unless Roles.has_role?(user, :editor) do
-      ^criteria = [{:user_id, user.id} | criteria]
-    end
+    criteria =
+      if Roles.has_role?(user, :editor) do
+        criteria
+      else
+        [{:user_id, user.id} | criteria]
+      end
 
     criteria ++ [order_by: {:inserted_at, :desc}]
+  end
+
+  # Helper functions
+
+  defp status_badge_color("draft"), do: "bg-gray-100 text-gray-800"
+  defp status_badge_color("published"), do: "bg-green-100 text-green-800"
+  defp status_badge_color("scheduled"), do: "bg-blue-100 text-blue-800"
+  defp status_badge_color(_else), do: "bg-gray-100 text-gray-800"
+
+  defp format_date(nil), do: ""
+
+  defp format_date(datetime) do
+    Calendar.strftime(datetime, "%b %d, %Y %H:%M")
   end
 end

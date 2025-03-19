@@ -20,6 +20,8 @@ defmodule BeamFlowWeb.Router do
   pipeline :admin do
     plug :browser
     plug :require_authenticated_user
+    plug :put_root_layout, {BeamFlowWeb.AdminLayouts, :root}
+    plug :put_layout, {BeamFlowWeb.AdminLayouts, :app}
     # Additional admin-specific plugs can be added here
   end
 
