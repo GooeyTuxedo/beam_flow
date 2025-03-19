@@ -1,4 +1,4 @@
-defmodule BeamFlowWeb.Admin.PostLive.FormComponent do
+defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
   use BeamFlowWeb, :live_component
 
   alias BeamFlow.Content

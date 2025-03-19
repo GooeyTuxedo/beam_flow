@@ -214,7 +214,7 @@ defmodule BeamFlowWeb.Editor.PostLive.Index do
     <%= if @live_action in [:new, :edit] do %>
       <.modal id="post-modal" show on_cancel={JS.patch(~p"/editor/posts")}>
         <.live_component
-          module={BeamFlowWeb.Admin.PostLive.FormComponent}
+          module={BeamFlowWeb.Shared.PostLive.FormComponent}
           id={@post.id || :new}
           title={@page_title}
           action={@live_action}
