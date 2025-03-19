@@ -1,10 +1,9 @@
-defmodule BeamFlowWeb.Admin.PostLive.Index do
+defmodule BeamFlowWeb.Editor.PostLive.Index do
   use BeamFlowWeb, :live_view
 
   import BeamFlowWeb.DashboardComponents
   alias BeamFlow.Content
   alias BeamFlow.Content.Post
-  alias BeamFlow.Roles
 
   @impl true
   def mount(_params, _session, socket) do
@@ -44,41 +43,27 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
     post = Content.get_post!(id)
-    current_user = socket.assigns.current_user
 
-    if can_delete_post?(current_user, post) do
-      {:ok, _post} = Content.delete_post(post)
+    # Editors can delete any post
+    {:ok, _post} = Content.delete_post(post)
 
-      {:noreply,
-       socket
-       |> put_flash(:info, "Post deleted successfully")
-       |> assign_posts()}
-    else
-      {:noreply,
-       socket
-       |> put_flash(:error, "You don't have permission to delete this post")
-       |> assign_posts()}
-    end
+    {:noreply,
+     socket
+     |> put_flash(:info, "Post deleted successfully")
+     |> assign_posts()}
   end
 
   @impl true
   def handle_event("publish", %{"id" => id}, socket) do
     post = Content.get_post!(id)
-    current_user = socket.assigns.current_user
 
-    if can_publish_post?(current_user, post) do
-      {:ok, _post} = Content.publish_post(post)
+    # Editors can publish any post
+    {:ok, _post} = Content.publish_post(post)
 
-      {:noreply,
-       socket
-       |> put_flash(:info, "Post published successfully")
-       |> assign_posts()}
-    else
-      {:noreply,
-       socket
-       |> put_flash(:error, "You don't have permission to publish this post")
-       |> assign_posts()}
-    end
+    {:noreply,
+     socket
+     |> put_flash(:info, "Post published successfully")
+     |> assign_posts()}
   end
 
   @impl true
@@ -93,13 +78,11 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <.section_header title="Posts" subtitle="Manage your blog content">
+      <.section_header title="Posts" subtitle="Manage and review all blog content">
         <:actions>
-          <%= if Roles.has_role?(@current_user, :author) do %>
-            <.btn_primary patch={~p"/admin/posts/new"}>
-              <.icon name="hero-plus" class="w-5 h-5 mr-2" /> New Post
-            </.btn_primary>
-          <% end %>
+          <.btn_primary patch={~p"/editor/posts/new"}>
+            <.icon name="hero-plus" class="w-5 h-5 mr-2" /> New Post
+          </.btn_primary>
         </:actions>
       </.section_header>
 
@@ -179,16 +162,14 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
                   </div>
                   <div class="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5">
                     <div class="flex overflow-hidden">
-                      <%= if Roles.has_role?(@current_user, :editor) || (@current_user.id == post.user_id && Roles.has_role?(@current_user, :author)) do %>
-                        <.link
-                          patch={~p"/admin/posts/#{post.id}/edit"}
-                          class="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          <span>Edit</span>
-                        </.link>
-                      <% end %>
+                      <.link
+                        patch={~p"/editor/posts/#{post.id}/edit"}
+                        class="text-indigo-600 hover:text-indigo-900 mr-3"
+                      >
+                        <span>Edit</span>
+                      </.link>
 
-                      <%= if (Roles.has_role?(@current_user, :editor) || @current_user.id == post.user_id) && post.status == "draft" do %>
+                      <%= if post.status == "draft" do %>
                         <a
                           href="#"
                           phx-click="publish"
@@ -200,17 +181,15 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
                         </a>
                       <% end %>
 
-                      <%= if Roles.has_role?(@current_user, :editor) || (@current_user.id == post.user_id && Roles.has_role?(@current_user, :author)) do %>
-                        <a
-                          href="#"
-                          phx-click="delete"
-                          phx-value-id={post.id}
-                          data-confirm="Are you sure you want to delete this post?"
-                          class="text-red-600 hover:text-red-900"
-                        >
-                          <span>Delete</span>
-                        </a>
-                      <% end %>
+                      <a
+                        href="#"
+                        phx-click="delete"
+                        phx-value-id={post.id}
+                        data-confirm="Are you sure you want to delete this post?"
+                        class="text-red-600 hover:text-red-900"
+                      >
+                        <span>Delete</span>
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -233,7 +212,7 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
     </div>
 
     <%= if @live_action in [:new, :edit] do %>
-      <.modal id="post-modal" show on_cancel={JS.patch(~p"/admin/posts")}>
+      <.modal id="post-modal" show on_cancel={JS.patch(~p"/editor/posts")}>
         <.live_component
           module={BeamFlowWeb.Admin.PostLive.FormComponent}
           id={@post.id || :new}
@@ -241,7 +220,7 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
           action={@live_action}
           post={@post}
           current_user={@current_user}
-          return_to={~p"/admin/posts"}
+          return_to={~p"/editor/posts"}
         />
       </.modal>
     <% end %>
@@ -252,24 +231,11 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
     socket = BeamFlowWeb.LiveAuth.assign_user_roles(socket)
 
     filter = socket.assigns.filter
-    criteria = build_criteria(filter, socket.assigns.current_user)
+    criteria = build_criteria(filter)
     assign(socket, :posts, Content.list_posts(criteria))
   end
 
-  # Permission check helpers that work with the Roles module
-  defp can_delete_post?(%{role: role}, _post) when role in [:admin, :editor], do: true
-
-  defp can_delete_post?(%{id: user_id} = user, %{user_id: post_user_id}) do
-    user_id == post_user_id && Roles.has_role?(user, :author)
-  end
-
-  defp can_delete_post?(_user, _post), do: false
-
-  defp can_publish_post?(%{role: role}, _post) when role in [:admin, :editor], do: true
-  defp can_publish_post?(%{id: user_id}, %{user_id: post_user_id}), do: user_id == post_user_id
-  defp can_publish_post?(_user, _post), do: false
-
-  defp build_criteria(filter, user) do
+  defp build_criteria(filter) do
     criteria = []
 
     criteria =
@@ -282,13 +248,7 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
         do: [{:search, filter["search"]} | criteria],
         else: criteria
 
-    criteria =
-      if Roles.has_role?(user, :editor) do
-        criteria
-      else
-        [{:user_id, user.id} | criteria]
-      end
-
+    # Editors can see all posts
     criteria ++ [order_by: {:inserted_at, :desc}]
   end
 

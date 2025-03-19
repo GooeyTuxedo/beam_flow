@@ -25,6 +25,22 @@ defmodule BeamFlowWeb.Router do
     # Additional admin-specific plugs can be added here
   end
 
+  pipeline :editor do
+    plug :browser
+    plug :require_authenticated_user
+    plug :put_root_layout, {BeamFlowWeb.EditorLayouts, :root}
+    plug :put_layout, {BeamFlowWeb.EditorLayouts, :app}
+    # Additional editor-specific plugs can be added here
+  end
+
+  pipeline :author do
+    plug :browser
+    plug :require_authenticated_user
+    plug :put_root_layout, {BeamFlowWeb.AuthorLayouts, :root}
+    plug :put_layout, {BeamFlowWeb.AuthorLayouts, :app}
+    # Additional author-specific plugs can be added here
+  end
+
   scope "/", BeamFlowWeb do
     pipe_through :browser
 
@@ -112,10 +128,9 @@ defmodule BeamFlowWeb.Router do
     end
   end
 
-  # Add another scope for editor-specific routes
+  # Editor routes with full post management
   scope "/editor", BeamFlowWeb.Editor, as: :editor do
-    pipe_through :browser
-    pipe_through :require_authenticated_user
+    pipe_through :editor
 
     live_session :editor_area,
       on_mount: [
@@ -124,14 +139,22 @@ defmodule BeamFlowWeb.Router do
         {BeamFlowWeb.LiveAuth, :audit_access}
       ] do
       live "/", DashboardLive, :index
-      # Editor-specific routes will be added here as we implement them
+
+      # Post management routes
+      live "/posts", PostLive.Index, :index
+      live "/posts/new", PostLive.Index, :new
+      live "/posts/:id/edit", PostLive.Index, :edit
+      live "/posts/:id", PostLive.Show, :show
+
+      # Future routes for comments and media
+      # live "/comments", CommentLive.Index, :index
+      # live "/media", MediaLive.Index, :index
     end
   end
 
-  # Add a scope for author routes
+  # Author routes with own content management
   scope "/author", BeamFlowWeb.Author, as: :author do
-    pipe_through :browser
-    pipe_through :require_authenticated_user
+    pipe_through :author
 
     live_session :author_area,
       on_mount: [
@@ -140,7 +163,12 @@ defmodule BeamFlowWeb.Router do
         {BeamFlowWeb.LiveAuth, :audit_access}
       ] do
       live "/", DashboardLive, :index
-      # Author-specific routes will be added here as we implement them
+
+      # Post management routes
+      live "/posts", PostLive.Index, :index
+      live "/posts/new", PostLive.Index, :new
+      live "/posts/:id/edit", PostLive.Index, :edit
+      live "/posts/:id", PostLive.Show, :show
     end
   end
 end

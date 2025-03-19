@@ -30,10 +30,10 @@ defmodule BeamFlowWeb.DashboardLiveTest do
     setup [:create_user_and_log_in_as_editor]
 
     test "renders dashboard elements", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/editor")
+      {:ok, view, html} = live(conn, "/editor")
 
       # Test that dashboard shows the expected sections
-      assert has_element?(view, "h1", "Editor Dashboard")
+      assert html =~ "Editor Dashboard"
       assert has_element?(view, "h2", "Pending Approvals")
 
       # Test dashboard cards
@@ -47,10 +47,10 @@ defmodule BeamFlowWeb.DashboardLiveTest do
     setup [:create_user_and_log_in_as_author]
 
     test "renders dashboard elements", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/author")
+      {:ok, view, html} = live(conn, "/author")
 
       # Test that dashboard shows the expected sections
-      assert has_element?(view, "h1", "Author Dashboard")
+      assert html =~ "Author Dashboard"
       assert has_element?(view, "h2", "Recent Posts")
 
       # Test dashboard cards
@@ -61,7 +61,7 @@ defmodule BeamFlowWeb.DashboardLiveTest do
       # Test navigation links
       assert has_element?(view, "a", "New Post")
       # Check that the link exists and has the right destination
-      assert view |> element("a", "New Post") |> render() =~ "#"
+      assert view |> element("a", "New Post") |> render() =~ "/author/posts/new"
     end
   end
 

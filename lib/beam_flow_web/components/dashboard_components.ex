@@ -1,6 +1,6 @@
-defmodule BeamFlowWeb.AdminComponents do
+defmodule BeamFlowWeb.DashboardComponents do
   @moduledoc """
-  Provides UI components for the admin dashboard.
+  Provides UI components for all dashboard types (admin, editor, author).
 
   The components in this module use Tailwind CSS, a utility-first CSS framework.
   See the [Tailwind CSS documentation](https://tailwindcss.com) to learn how to
@@ -13,16 +13,17 @@ defmodule BeamFlowWeb.AdminComponents do
   import BeamFlowWeb.CoreComponents
 
   @doc """
-  Renders the admin layout with navigation and header.
+  Renders the dashboard layout with navigation and header.
   """
-  attr :page_title, :string, default: "Admin"
+  attr :page_title, :string, default: "Dashboard"
   attr :current_user, :map, required: true
+  attr :dashboard_type, :atom, default: :admin
   slot :inner_block, required: true
 
-  def admin_layout(assigns) do
+  def dashboard_layout(assigns) do
     ~H"""
     <div class="min-h-screen bg-gray-100">
-      <.admin_nav current_user={@current_user} />
+      <.dashboard_nav current_user={@current_user} dashboard_type={@dashboard_type} />
 
       <header class="bg-white shadow">
         <div class="mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -44,43 +45,75 @@ defmodule BeamFlowWeb.AdminComponents do
   end
 
   @doc """
-  Renders the admin navigation bar.
+  Renders the navigation bar for different dashboard types.
   """
   attr :current_user, :map, required: true
+  attr :dashboard_type, :atom, default: :admin
 
-  def admin_nav(assigns) do
+  def dashboard_nav(assigns) do
+    bg_color = dashboard_bg_color(assigns.dashboard_type)
+    hover_color = dashboard_hover_color(assigns.dashboard_type)
+    brand_name = dashboard_brand_name(assigns.dashboard_type)
+
+    assigns =
+      assigns
+      |> assign(:bg_color, bg_color)
+      |> assign(:hover_color, hover_color)
+      |> assign(:brand_name, brand_name)
+
     ~H"""
-    <nav class="bg-zinc-800">
+    <nav class={@bg_color}>
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <span class="text-white font-bold">BeamFlow Admin</span>
+              <span class="text-white font-bold">{@brand_name}</span>
             </div>
             <div class="hidden md:block">
               <div class="ml-10 flex items-baseline space-x-4">
-                <.nav_link navigate={~p"/admin"} active={true}>
+                <.nav_link
+                  navigate={get_dashboard_home_path(@dashboard_type)}
+                  active={true}
+                  dashboard_type={@dashboard_type}
+                >
                   Dashboard
                 </.nav_link>
-                <.nav_link navigate={~p"/admin/posts"} active={false}>
-                  Posts
+                <.nav_link
+                  navigate={get_posts_path(@dashboard_type)}
+                  active={false}
+                  dashboard_type={@dashboard_type}
+                >
+                  {if @dashboard_type == :author, do: "My Posts", else: "Posts"}
                 </.nav_link>
-                <.nav_link navigate={~p"/admin/users"} active={false}>
-                  Users
-                </.nav_link>
-                <!--
-                Keep these links as references for future implementation,
-                but comment them out to avoid warnings since they're not defined in the router yet
-                <.nav_link navigate="#" active={false}>
-                  Categories
-                </.nav_link>
-                <.nav_link navigate="#" active={false}>
-                  Media
-                </.nav_link>
-                <.nav_link navigate="#" active={false}>
-                  Settings
-                </.nav_link>
-                -->
+
+                <%= if @dashboard_type == :admin do %>
+                  <.nav_link
+                    navigate={~p"/admin/users"}
+                    active={false}
+                    dashboard_type={@dashboard_type}
+                  >
+                    Users
+                  </.nav_link>
+                <% end %>
+
+                <%= if @dashboard_type == :editor do %>
+                  <.nav_link navigate="#" active={false} dashboard_type={@dashboard_type}>
+                    Comments
+                  </.nav_link>
+                  <.nav_link navigate="#" active={false} dashboard_type={@dashboard_type}>
+                    Media
+                  </.nav_link>
+                <% end %>
+
+                <%= if @dashboard_type == :author do %>
+                  <.nav_link
+                    navigate={get_new_post_path(@dashboard_type)}
+                    active={false}
+                    dashboard_type={@dashboard_type}
+                  >
+                    New Post
+                  </.nav_link>
+                <% end %>
               </div>
             </div>
           </div>
@@ -111,20 +144,29 @@ defmodule BeamFlowWeb.AdminComponents do
   end
 
   @doc """
-  Renders a navigation link for the admin area.
+  Renders a navigation link for dashboard areas.
   """
   attr :navigate, :any, required: true
   attr :active, :boolean, default: false
+  attr :dashboard_type, :atom, default: :admin
   slot :inner_block, required: true
 
   def nav_link(assigns) do
+    hover_color = dashboard_hover_color(assigns.dashboard_type)
+    active_color = dashboard_active_color(assigns.dashboard_type)
+
+    assigns =
+      assigns
+      |> assign(:hover_color, hover_color)
+      |> assign(:active_color, active_color)
+
     ~H"""
     <.link
       navigate={@navigate}
       class={[
         "px-3 py-2 rounded-md text-sm font-medium",
-        @active && "bg-zinc-700 text-white",
-        !@active && "text-gray-300 hover:bg-zinc-700 hover:text-white"
+        @active && @active_color,
+        !@active && "text-gray-300 #{@hover_color}"
       ]}
     >
       {render_slot(@inner_block)}
@@ -183,55 +225,6 @@ defmodule BeamFlowWeb.AdminComponents do
       </div>
     </div>
     """
-  end
-
-  # Helper function to add color classes based on the color attribute
-  # This reduces the complexity of the dashboard_card function
-  defp add_color_classes(assigns) do
-    bg_color = get_bg_color(assigns.color)
-    text_color = get_text_color(assigns.color)
-    hover_color = get_hover_color(assigns.color)
-
-    assigns
-    |> assign(:bg_color, bg_color)
-    |> assign(:text_color, text_color)
-    |> assign(:hover_color, hover_color)
-  end
-
-  defp get_bg_color(color) do
-    case color do
-      "indigo" -> "bg-indigo-500"
-      "green" -> "bg-green-500"
-      "blue" -> "bg-blue-500"
-      "red" -> "bg-red-500"
-      "yellow" -> "bg-yellow-500"
-      "purple" -> "bg-purple-500"
-      _other -> "bg-indigo-500"
-    end
-  end
-
-  defp get_text_color(color) do
-    case color do
-      "indigo" -> "text-indigo-600"
-      "green" -> "text-green-600"
-      "blue" -> "text-blue-600"
-      "red" -> "text-red-600"
-      "yellow" -> "text-yellow-600"
-      "purple" -> "text-purple-600"
-      _other -> "text-indigo-600"
-    end
-  end
-
-  defp get_hover_color(color) do
-    case color do
-      "indigo" -> "hover:text-indigo-500"
-      "green" -> "hover:text-green-500"
-      "blue" -> "hover:text-blue-500"
-      "red" -> "hover:text-red-500"
-      "yellow" -> "hover:text-yellow-500"
-      "purple" -> "hover:text-purple-500"
-      _other -> "hover:text-indigo-500"
-    end
   end
 
   @doc """
@@ -339,5 +332,90 @@ defmodule BeamFlowWeb.AdminComponents do
       </div>
     </div>
     """
+  end
+
+  # Helper functions for dashboard types
+
+  defp dashboard_bg_color(:admin), do: "bg-zinc-800"
+  defp dashboard_bg_color(:editor), do: "bg-teal-800"
+  defp dashboard_bg_color(:author), do: "bg-cyan-800"
+  defp dashboard_bg_color(_everyone_else), do: "bg-gray-800"
+
+  defp dashboard_hover_color(:admin), do: "hover:bg-zinc-700 hover:text-white"
+  defp dashboard_hover_color(:editor), do: "hover:bg-teal-700 hover:text-white"
+  defp dashboard_hover_color(:author), do: "hover:bg-cyan-700 hover:text-white"
+  defp dashboard_hover_color(_everyone_else), do: "hover:bg-gray-700 hover:text-white"
+
+  defp dashboard_active_color(:admin), do: "bg-zinc-700 text-white"
+  defp dashboard_active_color(:editor), do: "bg-teal-700 text-white"
+  defp dashboard_active_color(:author), do: "bg-cyan-700 text-white"
+  defp dashboard_active_color(_everyone_else), do: "bg-gray-700 text-white"
+
+  defp dashboard_brand_name(:admin), do: "BeamFlow Admin"
+  defp dashboard_brand_name(:editor), do: "BeamFlow Editor"
+  defp dashboard_brand_name(:author), do: "BeamFlow Author"
+  defp dashboard_brand_name(_everyone_else), do: "BeamFlow Dashboard"
+
+  # Path helper functions based on dashboard type
+
+  defp get_dashboard_home_path(:admin), do: ~p"/admin"
+  defp get_dashboard_home_path(:editor), do: ~p"/editor"
+  defp get_dashboard_home_path(:author), do: ~p"/author"
+
+  defp get_posts_path(:admin), do: ~p"/admin/posts"
+  defp get_posts_path(:editor), do: ~p"/editor/posts"
+  defp get_posts_path(:author), do: ~p"/author/posts"
+
+  defp get_new_post_path(:admin), do: ~p"/admin/posts/new"
+  defp get_new_post_path(:editor), do: ~p"/editor/posts/new"
+  defp get_new_post_path(:author), do: ~p"/author/posts/new"
+
+  # Helper function to add color classes based on the color attribute
+  # This reduces the complexity of the dashboard_card function
+  defp add_color_classes(assigns) do
+    bg_color = get_bg_color(assigns.color)
+    text_color = get_text_color(assigns.color)
+    hover_color = get_hover_color(assigns.color)
+
+    assigns
+    |> assign(:bg_color, bg_color)
+    |> assign(:text_color, text_color)
+    |> assign(:hover_color, hover_color)
+  end
+
+  defp get_bg_color(color) do
+    case color do
+      "indigo" -> "bg-indigo-500"
+      "green" -> "bg-green-500"
+      "blue" -> "bg-blue-500"
+      "red" -> "bg-red-500"
+      "yellow" -> "bg-yellow-500"
+      "purple" -> "bg-purple-500"
+      _other -> "bg-indigo-500"
+    end
+  end
+
+  defp get_text_color(color) do
+    case color do
+      "indigo" -> "text-indigo-600"
+      "green" -> "text-green-600"
+      "blue" -> "text-blue-600"
+      "red" -> "text-red-600"
+      "yellow" -> "text-yellow-600"
+      "purple" -> "text-purple-600"
+      _other -> "text-indigo-600"
+    end
+  end
+
+  defp get_hover_color(color) do
+    case color do
+      "indigo" -> "hover:text-indigo-500"
+      "green" -> "hover:text-green-500"
+      "blue" -> "hover:text-blue-500"
+      "red" -> "hover:text-red-500"
+      "yellow" -> "hover:text-yellow-500"
+      "purple" -> "hover:text-purple-500"
+      _other -> "hover:text-indigo-500"
+    end
   end
 end

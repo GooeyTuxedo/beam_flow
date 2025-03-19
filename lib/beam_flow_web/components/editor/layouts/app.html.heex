@@ -1,0 +1,90 @@
+<div class="min-h-screen bg-gray-100">
+  <nav class="bg-teal-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <span class="text-white font-bold">BeamFlow Editor</span>
+          </div>
+          <div class="hidden md:block">
+            <div class="ml-10 flex items-baseline space-x-4">
+              <.link
+                navigate={~p"/editor"}
+                class={[
+                  current_path(@conn) == "/editor" && "bg-teal-700 text-white",
+                  current_path(@conn) != "/editor" &&
+                    "text-gray-300 hover:bg-teal-700 hover:text-white",
+                  "px-3 py-2 rounded-md text-sm font-medium"
+                ]}
+              >
+                Dashboard
+              </.link>
+
+              <.link
+                navigate={~p"/admin/posts"}
+                class={[
+                  String.contains?(current_path(@conn), "/admin/posts") &&
+                    "bg-teal-700 text-white",
+                  !String.contains?(current_path(@conn), "/admin/posts") &&
+                    "text-gray-300 hover:bg-teal-700 hover:text-white",
+                  "px-3 py-2 rounded-md text-sm font-medium"
+                ]}
+              >
+                Posts
+              </.link>
+
+              <.link
+                navigate="#"
+                class="text-gray-300 hover:bg-teal-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Comments
+              </.link>
+
+              <.link
+                navigate="#"
+                class="text-gray-300 hover:bg-teal-700 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Media
+              </.link>
+            </div>
+          </div>
+        </div>
+        <div class="hidden md:block">
+          <div class="ml-4 flex items-center md:ml-6">
+            <.link
+              navigate={~p"/users/settings"}
+              class="p-1 rounded-full text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
+            >
+              <span class="sr-only">User settings</span>
+              <.icon name="hero-cog-6-tooth" class="h-6 w-6" />
+            </.link>
+
+            <.link
+              navigate={~p"/users/log_out"}
+              method="delete"
+              class="ml-3 p-1 rounded-full text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-white"
+            >
+              <span class="sr-only">Log out</span>
+              <.icon name="hero-arrow-right-on-rectangle" class="h-6 w-6" />
+            </.link>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <header class="bg-white shadow">
+    <div class="mx-auto py-6 px-4 sm:px-6 lg:px-8">
+      <h1 class="text-3xl font-bold text-gray-900">
+        {assigns[:page_title] || "Editor"}
+      </h1>
+    </div>
+  </header>
+
+  <main>
+    <div class="mx-auto py-6 sm:px-6 lg:px-8">
+      <.flash_group flash={@flash} />
+      {@inner_content}
+    </div>
+  </main>
+</div>

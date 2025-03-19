@@ -1,7 +1,7 @@
 defmodule BeamFlowWeb.Admin.DashboardLive do
   use BeamFlowWeb, :live_view
 
-  import BeamFlowWeb.AdminComponents
+  import BeamFlowWeb.DashboardComponents
   alias BeamFlow.Accounts
   alias BeamFlow.Content
 
@@ -37,6 +37,8 @@ defmodule BeamFlowWeb.Admin.DashboardLive do
 
   @impl true
   def render(assigns) do
+    assigns = assign(assigns, :dashboard_type, :admin)
+
     ~H"""
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <.section_header title="Dashboard" subtitle="Manage your blog content and users">

@@ -1,16 +1,15 @@
-defmodule BeamFlowWeb.Admin.PostLive.Index do
+defmodule BeamFlowWeb.Author.PostLive.Index do
   use BeamFlowWeb, :live_view
 
   import BeamFlowWeb.DashboardComponents
   alias BeamFlow.Content
   alias BeamFlow.Content.Post
-  alias BeamFlow.Roles
 
   @impl true
   def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:page_title, "Posts")
+      |> assign(:page_title, "My Posts")
       |> assign(:filter, %{"status" => nil, "search" => nil})
       |> assign_posts()
 
@@ -35,10 +34,18 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
 
   defp apply_action(socket, :edit, %{"id" => id}) do
     post = Content.get_post!(id)
+    current_user = socket.assigns.current_user
 
-    socket
-    |> assign(:page_title, "Edit Post: #{post.title}")
-    |> assign(:post, post)
+    # Authors can only edit their own posts
+    if post.user_id == current_user.id do
+      socket
+      |> assign(:page_title, "Edit Post: #{post.title}")
+      |> assign(:post, post)
+    else
+      socket
+      |> put_flash(:error, "You don't have permission to edit this post")
+      |> push_patch(to: ~p"/author/posts")
+    end
   end
 
   @impl true
@@ -46,7 +53,8 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
     post = Content.get_post!(id)
     current_user = socket.assigns.current_user
 
-    if can_delete_post?(current_user, post) do
+    # Authors can only delete their own posts
+    if post.user_id == current_user.id do
       {:ok, _post} = Content.delete_post(post)
 
       {:noreply,
@@ -66,7 +74,8 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
     post = Content.get_post!(id)
     current_user = socket.assigns.current_user
 
-    if can_publish_post?(current_user, post) do
+    # Authors can only publish their own posts
+    if post.user_id == current_user.id do
       {:ok, _post} = Content.publish_post(post)
 
       {:noreply,
@@ -93,13 +102,11 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
   def render(assigns) do
     ~H"""
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <.section_header title="Posts" subtitle="Manage your blog content">
+      <.section_header title="My Posts" subtitle="Manage your blog content">
         <:actions>
-          <%= if Roles.has_role?(@current_user, :author) do %>
-            <.btn_primary patch={~p"/admin/posts/new"}>
-              <.icon name="hero-plus" class="w-5 h-5 mr-2" /> New Post
-            </.btn_primary>
-          <% end %>
+          <.btn_primary patch={~p"/author/posts/new"}>
+            <.icon name="hero-plus" class="w-5 h-5 mr-2" /> New Post
+          </.btn_primary>
         </:actions>
       </.section_header>
 
@@ -166,8 +173,6 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
                     <div class="mt-2 flex">
                       <div class="flex items-center text-sm text-gray-500">
                         <p>
-                          By {post.user.name}
-                          <span class="mx-1">&middot;</span>
                           Created {format_date(post.inserted_at)}
                           <%= if post.published_at do %>
                             <span class="mx-1">&middot;</span>
@@ -179,16 +184,14 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
                   </div>
                   <div class="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5">
                     <div class="flex overflow-hidden">
-                      <%= if Roles.has_role?(@current_user, :editor) || (@current_user.id == post.user_id && Roles.has_role?(@current_user, :author)) do %>
-                        <.link
-                          patch={~p"/admin/posts/#{post.id}/edit"}
-                          class="text-indigo-600 hover:text-indigo-900 mr-3"
-                        >
-                          <span>Edit</span>
-                        </.link>
-                      <% end %>
+                      <.link
+                        patch={~p"/author/posts/#{post.id}/edit"}
+                        class="text-indigo-600 hover:text-indigo-900 mr-3"
+                      >
+                        <span>Edit</span>
+                      </.link>
 
-                      <%= if (Roles.has_role?(@current_user, :editor) || @current_user.id == post.user_id) && post.status == "draft" do %>
+                      <%= if post.status == "draft" do %>
                         <a
                           href="#"
                           phx-click="publish"
@@ -200,17 +203,15 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
                         </a>
                       <% end %>
 
-                      <%= if Roles.has_role?(@current_user, :editor) || (@current_user.id == post.user_id && Roles.has_role?(@current_user, :author)) do %>
-                        <a
-                          href="#"
-                          phx-click="delete"
-                          phx-value-id={post.id}
-                          data-confirm="Are you sure you want to delete this post?"
-                          class="text-red-600 hover:text-red-900"
-                        >
-                          <span>Delete</span>
-                        </a>
-                      <% end %>
+                      <a
+                        href="#"
+                        phx-click="delete"
+                        phx-value-id={post.id}
+                        data-confirm="Are you sure you want to delete this post?"
+                        class="text-red-600 hover:text-red-900"
+                      >
+                        <span>Delete</span>
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -224,6 +225,8 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
                 No posts found.
                 <%= if @filter["status"] || @filter["search"] do %>
                   Try adjusting your filters.
+                <% else %>
+                  Click "New Post" to create your first post.
                 <% end %>
               </div>
             </li>
@@ -233,7 +236,7 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
     </div>
 
     <%= if @live_action in [:new, :edit] do %>
-      <.modal id="post-modal" show on_cancel={JS.patch(~p"/admin/posts")}>
+      <.modal id="post-modal" show on_cancel={JS.patch(~p"/author/posts")}>
         <.live_component
           module={BeamFlowWeb.Admin.PostLive.FormComponent}
           id={@post.id || :new}
@@ -241,7 +244,7 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
           action={@live_action}
           post={@post}
           current_user={@current_user}
-          return_to={~p"/admin/posts"}
+          return_to={~p"/author/posts"}
         />
       </.modal>
     <% end %>
@@ -250,27 +253,17 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
 
   defp assign_posts(socket) do
     socket = BeamFlowWeb.LiveAuth.assign_user_roles(socket)
+    current_user = socket.assigns.current_user
 
     filter = socket.assigns.filter
-    criteria = build_criteria(filter, socket.assigns.current_user)
+
+    # Authors can only see their own posts
+    criteria = build_criteria(filter, current_user.id)
     assign(socket, :posts, Content.list_posts(criteria))
   end
 
-  # Permission check helpers that work with the Roles module
-  defp can_delete_post?(%{role: role}, _post) when role in [:admin, :editor], do: true
-
-  defp can_delete_post?(%{id: user_id} = user, %{user_id: post_user_id}) do
-    user_id == post_user_id && Roles.has_role?(user, :author)
-  end
-
-  defp can_delete_post?(_user, _post), do: false
-
-  defp can_publish_post?(%{role: role}, _post) when role in [:admin, :editor], do: true
-  defp can_publish_post?(%{id: user_id}, %{user_id: post_user_id}), do: user_id == post_user_id
-  defp can_publish_post?(_user, _post), do: false
-
-  defp build_criteria(filter, user) do
-    criteria = []
+  defp build_criteria(filter, user_id) do
+    criteria = [{:user_id, user_id}]
 
     criteria =
       if filter["status"] && filter["status"] != "",
@@ -281,13 +274,6 @@ defmodule BeamFlowWeb.Admin.PostLive.Index do
       if filter["search"] && filter["search"] != "",
         do: [{:search, filter["search"]} | criteria],
         else: criteria
-
-    criteria =
-      if Roles.has_role?(user, :editor) do
-        criteria
-      else
-        [{:user_id, user.id} | criteria]
-      end
 
     criteria ++ [order_by: {:inserted_at, :desc}]
   end
