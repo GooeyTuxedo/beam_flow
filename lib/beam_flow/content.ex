@@ -127,6 +127,10 @@ defmodule BeamFlow.Content do
     |> Post.create_changeset(attrs)
     |> ensure_unique_slug()
     |> Repo.insert()
+    |> case do
+      {:ok, post} -> {:ok, Repo.preload(post, :user)}
+      error -> error
+    end
   end
 
   @doc """
@@ -146,6 +150,10 @@ defmodule BeamFlow.Content do
     |> Post.changeset(attrs)
     |> ensure_unique_slug()
     |> Repo.update()
+    |> case do
+      {:ok, post} -> {:ok, Repo.preload(post, :user)}
+      error -> error
+    end
   end
 
   @doc """

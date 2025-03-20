@@ -2,6 +2,7 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
   use BeamFlowWeb, :live_view
 
   import BeamFlowWeb.DashboardComponents
+  alias BeamFlow.Accounts
   alias BeamFlow.Content
 
   # Apply editor role check on mount
@@ -10,7 +11,9 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
   @impl true
   def mount(_params, _session, socket) do
     # Get counts for dashboard cards
-    post_count = length(Content.list_posts(status: "draft"))
+    post_count = length(Content.list_posts())
+    draft_count = length(Content.list_posts(status: "draft"))
+    published_count = length(Content.list_posts(status: "published"))
 
     # In a real scenario, you'll want to have an actual comment schema and context
     comment_count = 0
@@ -18,16 +21,24 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
     # Future: Media count when implemented
     media_count = 0
 
-    # Get posts pending approval (draft posts)
-    pending_posts = Content.list_posts(status: "draft")
+    # Get posts pending approval (draft posts) and recent posts
+    pending_posts = Content.list_posts(status: "draft", limit: 5)
+    recent_posts = Content.list_posts(order_by: {:inserted_at, :desc}, limit: 5)
+
+    # Get recent activities (audit logs) specific to the editor
+    recent_activities = Accounts.list_recent_logs(5)
 
     {:ok,
      socket
      |> assign(:page_title, "Editor Dashboard")
      |> assign(:post_count, post_count)
+     |> assign(:draft_count, draft_count)
+     |> assign(:published_count, published_count)
      |> assign(:comment_count, comment_count)
      |> assign(:media_count, media_count)
-     |> assign(:pending_posts, pending_posts)}
+     |> assign(:pending_posts, pending_posts)
+     |> assign(:recent_posts, recent_posts)
+     |> assign(:recent_activities, recent_activities)}
   end
 
   @impl true
@@ -50,13 +61,20 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
         </:actions>
       </.section_header>
 
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <.dashboard_card
-          title="Posts"
+          title="All Posts"
           count={@post_count}
           icon_path="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
           link={~p"/editor/posts"}
           color="blue"
+        />
+        <.dashboard_card
+          title="Pending Approval"
+          count={@draft_count}
+          icon_path="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+          link={~p"/editor/posts?status=draft"}
+          color="yellow"
         />
         <.dashboard_card
           title="Comments"
@@ -74,70 +92,74 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
         />
       </div>
 
-      <div class="mt-8">
-        <.section_header title="Pending Approvals" subtitle="Posts waiting for editorial review">
-          <:actions>
-            <%= if @post_count > 0 do %>
-              <.btn_secondary navigate={~p"/editor/posts"} class="text-sm">
-                View All
-              </.btn_secondary>
-            <% end %>
-          </:actions>
-        </.section_header>
-
-        <.panel>
-          <ul role="list" class="divide-y divide-gray-200">
-            <%= for post <- @pending_posts do %>
-              <li>
-                <div class="px-4 py-4 flex items-center sm:px-6">
-                  <div class="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <div class="flex text-sm">
-                        <p class="font-medium text-indigo-600 truncate">{post.title}</p>
-                        <p class="ml-1 flex-shrink-0 font-normal text-gray-500">
-                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            {post.status}
-                          </span>
-                        </p>
-                      </div>
-                      <div class="mt-2 flex">
-                        <div class="flex items-center text-sm text-gray-500">
-                          <p>
-                            By {post.user.name}
-                            <span class="mx-1">&middot;</span> Created {format_date(post.inserted_at)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5">
-                      <div class="flex overflow-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        <.panel title="Recent Posts" class="h-full">
+          <ul class="divide-y divide-gray-200">
+            <%= for post <- @recent_posts do %>
+              <li class="py-4">
+                <div class="flex space-x-3">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-sm font-medium">
                         <.link
-                          patch={~p"/editor/posts/#{post.id}/edit"}
-                          class="text-indigo-600 hover:text-indigo-900 mr-3"
+                          navigate={~p"/editor/posts/#{post.id}/edit"}
+                          class="text-indigo-600 hover:text-indigo-900"
                         >
-                          <span>Edit</span>
+                          {post.title}
                         </.link>
-                        <a
-                          href="#"
-                          phx-click="publish"
-                          phx-value-id={post.id}
-                          data-confirm="Are you sure you want to publish this post?"
-                          class="text-green-600 hover:text-green-900 mr-3"
-                        >
-                          <span>Publish</span>
-                        </a>
-                      </div>
+                      </h3>
+                      <.status_badge status={post.status} />
                     </div>
+                    <p class="text-sm text-gray-500">
+                      <%= if is_map(post.user) && Map.has_key?(post.user, :name) do %>
+                        By {post.user.name} •
+                      <% end %>
+                      {format_date(post.inserted_at)}
+                    </p>
+                  </div>
+                </div>
+              </li>
+            <% end %>
+            <%= if Enum.empty?(@recent_posts) do %>
+              <li class="py-4 text-center text-gray-500">
+                No posts to display
+              </li>
+            <% end %>
+          </ul>
+        </.panel>
+
+        <.panel title="Pending Approvals" class="h-full">
+          <ul class="divide-y divide-gray-200">
+            <%= for post <- @pending_posts do %>
+              <li class="py-4">
+                <div class="flex space-x-3">
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-sm font-medium">
+                        <.link
+                          navigate={~p"/editor/posts/#{post.id}/edit"}
+                          class="text-indigo-600 hover:text-indigo-900"
+                        >
+                          {post.title}
+                        </.link>
+                      </h3>
+                      <.status_badge status={post.status} />
+                    </div>
+                    <p class="text-sm text-gray-500">
+                      <%= if is_map(post.user) && Map.has_key?(post.user, :name) do %>
+                        By {post.user.name} •
+                      <% end %>
+                      {format_date(post.inserted_at)}
+                    </p>
+                    <!-- [rest of the item remains the same] -->
                   </div>
                 </div>
               </li>
             <% end %>
 
             <%= if Enum.empty?(@pending_posts) do %>
-              <li>
-                <div class="px-4 py-8 text-center text-gray-500">
-                  No posts pending approval.
-                </div>
+              <li class="py-4 text-center text-gray-500">
+                No posts pending approval
               </li>
             <% end %>
           </ul>
@@ -145,23 +167,15 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        <.panel title="Recent Comments" class="h-full">
-          <div class="text-center text-gray-500 py-6">
-            No recent comments to display
-          </div>
-        </.panel>
-
         <.panel title="Content Overview" class="h-full">
           <dl class="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div class="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
               <dt class="text-sm font-medium text-gray-500 truncate">Draft Posts</dt>
-              <dd class="mt-1 text-3xl font-semibold text-gray-900">{@post_count}</dd>
+              <dd class="mt-1 text-3xl font-semibold text-gray-900">{@draft_count}</dd>
             </div>
             <div class="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
               <dt class="text-sm font-medium text-gray-500 truncate">Published Posts</dt>
-              <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                {length(Content.list_posts(status: "published"))}
-              </dd>
+              <dd class="mt-1 text-3xl font-semibold text-gray-900">{@published_count}</dd>
             </div>
             <div class="px-4 py-5 bg-gray-50 shadow rounded-lg overflow-hidden sm:p-6">
               <dt class="text-sm font-medium text-gray-500 truncate">Comments Pending</dt>
@@ -172,6 +186,30 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
               <dd class="mt-1 text-3xl font-semibold text-gray-900">{@media_count}</dd>
             </div>
           </dl>
+        </.panel>
+
+        <.panel title="Recent Activity" class="h-full">
+          <div class="flow-root">
+            <ul class="-mb-8">
+              <%= for activity <- @recent_activities do %>
+                <li>
+                  <.activity_log_item
+                    user={activity.user || %{name: "System"}}
+                    action={activity.action}
+                    resource_type={activity.resource_type}
+                    resource_id={activity.resource_id}
+                    timestamp={activity.inserted_at}
+                    details={activity.metadata["path"]}
+                  />
+                </li>
+              <% end %>
+              <%= if Enum.empty?(@recent_activities) do %>
+                <li class="py-4 text-center text-gray-500">
+                  No recent activity to display
+                </li>
+              <% end %>
+            </ul>
+          </div>
         </.panel>
       </div>
     </div>
@@ -184,11 +222,19 @@ defmodule BeamFlowWeb.Editor.DashboardLive do
 
     case Content.publish_post(post) do
       {:ok, _post} ->
+        # Refresh data after publishing
+        draft_count = length(Content.list_posts(status: "draft"))
+        published_count = length(Content.list_posts(status: "published"))
+        pending_posts = Content.list_posts(status: "draft", limit: 5)
+        recent_posts = Content.list_posts(order_by: {:inserted_at, :desc}, limit: 5)
+
         {:noreply,
          socket
          |> put_flash(:info, "Post published successfully")
-         |> assign(:pending_posts, Content.list_posts(status: "draft"))
-         |> assign(:post_count, length(Content.list_posts(status: "draft")))}
+         |> assign(:draft_count, draft_count)
+         |> assign(:published_count, published_count)
+         |> assign(:pending_posts, pending_posts)
+         |> assign(:recent_posts, recent_posts)}
 
       {:error, _changeset} ->
         {:noreply,

@@ -6,6 +6,7 @@ defmodule BeamFlowWeb.AdminLayouts do
   appropriate header, navigation, and footer components.
   """
   use BeamFlowWeb, :html
+  import BeamFlowWeb.DashboardComponents
 
   # Define helper functions for layout usage
   def current_path(conn) do

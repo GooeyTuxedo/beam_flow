@@ -2,15 +2,16 @@ defmodule BeamFlowWeb.DashboardComponents do
   @moduledoc """
   Provides UI components for all dashboard types (admin, editor, author).
 
-  The components in this module use Tailwind CSS, a utility-first CSS framework.
-  See the [Tailwind CSS documentation](https://tailwindcss.com) to learn how to
-  customize them or feel free to swap in another framework altogether.
+  These components are designed to be reused across different dashboard
+  interfaces while maintaining consistent styling and behavior.
   """
-  # This includes the verified_routes with sigil_p
   use BeamFlowWeb, :html
 
-  # We can just import CoreComponents to use the built-in modal
   import BeamFlowWeb.CoreComponents
+
+  #
+  # Layout Components
+  #
 
   @doc """
   Renders the dashboard layout with navigation and header.
@@ -94,13 +95,28 @@ defmodule BeamFlowWeb.DashboardComponents do
                   >
                     Users
                   </.nav_link>
+
+                  <% # Placeholder links - will be implemented in future %>
+                  <.nav_link href="#" active={false} dashboard_type={@dashboard_type}>
+                    Categories
+                  </.nav_link>
+                  <.nav_link href="#" active={false} dashboard_type={@dashboard_type}>
+                    Tags
+                  </.nav_link>
                 <% end %>
 
                 <%= if @dashboard_type == :editor do %>
-                  <.nav_link navigate="#" active={false} dashboard_type={@dashboard_type}>
+                  <% # Placeholder links - will be implemented in future %>
+                  <.nav_link href="#" active={false} dashboard_type={@dashboard_type}>
+                    Categories
+                  </.nav_link>
+                  <.nav_link href="#" active={false} dashboard_type={@dashboard_type}>
+                    Tags
+                  </.nav_link>
+                  <.nav_link href="#" active={false} dashboard_type={@dashboard_type}>
                     Comments
                   </.nav_link>
-                  <.nav_link navigate="#" active={false} dashboard_type={@dashboard_type}>
+                  <.nav_link href="#" active={false} dashboard_type={@dashboard_type}>
                     Media
                   </.nav_link>
                 <% end %>
@@ -143,10 +159,15 @@ defmodule BeamFlowWeb.DashboardComponents do
     """
   end
 
+  #
+  # Navigation Components
+  #
+
   @doc """
   Renders a navigation link for dashboard areas.
   """
-  attr :navigate, :any, required: true
+  attr :navigate, :any, default: nil
+  attr :href, :any, default: nil
   attr :active, :boolean, default: false
   attr :dashboard_type, :atom, default: :admin
   slot :inner_block, required: true
@@ -163,6 +184,7 @@ defmodule BeamFlowWeb.DashboardComponents do
     ~H"""
     <.link
       navigate={@navigate}
+      href={@href}
       class={[
         "px-3 py-2 rounded-md text-sm font-medium",
         @active && @active_color,
@@ -173,6 +195,10 @@ defmodule BeamFlowWeb.DashboardComponents do
     </.link>
     """
   end
+
+  #
+  # Dashboard Cards and Statistics
+  #
 
   @doc """
   Renders a dashboard card with a title, count, and icon.
@@ -228,6 +254,81 @@ defmodule BeamFlowWeb.DashboardComponents do
   end
 
   @doc """
+  Renders a stats card for displaying a metric with percentage change.
+  """
+  attr :title, :string, required: true
+  attr :value, :any, required: true
+  attr :previous_value, :any, default: nil
+  attr :unit, :string, default: ""
+  attr :description, :string, default: nil
+  attr :is_currency, :boolean, default: false
+  attr :color, :string, default: "indigo"
+
+  def stats_card(assigns) do
+    assigns =
+      assigns
+      |> assign(:change_pct, calculate_change_percentage(assigns.value, assigns.previous_value))
+      |> assign(:change_type, determine_change_type(assigns.value, assigns.previous_value))
+      |> add_color_classes()
+
+    ~H"""
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+      <div class="p-5">
+        <div class="flex items-center">
+          <div class="w-0 flex-1">
+            <dt class="text-sm font-medium text-gray-500 truncate">
+              {@title}
+            </dt>
+            <dd class="mt-1">
+              <div class="text-2xl font-semibold text-gray-900">
+                <%= if @is_currency do %>
+                  {format_currency(@value)}
+                <% else %>
+                  {@value}{@unit}
+                <% end %>
+              </div>
+            </dd>
+            <%= if @previous_value != nil do %>
+              <dd class="mt-2 flex items-center text-sm">
+                <div class={[
+                  "flex items-center",
+                  @change_type == :increase && "text-green-600",
+                  @change_type == :decrease && "text-red-600",
+                  @change_type == :neutral && "text-gray-500"
+                ]}>
+                  <%= if @change_type == :increase do %>
+                    <.icon name="hero-arrow-up" class="w-4 h-4 mr-1" />
+                  <% end %>
+                  <%= if @change_type == :decrease do %>
+                    <.icon name="hero-arrow-down" class="w-4 h-4 mr-1" />
+                  <% end %>
+                  <%= if @change_type == :neutral do %>
+                    <.icon name="hero-minus" class="w-4 h-4 mr-1" />
+                  <% end %>
+                  {abs(@change_pct)}%
+                </div>
+                <span class="text-gray-500 ml-2">from previous period</span>
+              </dd>
+            <% end %>
+          </div>
+        </div>
+      </div>
+      <%= if @description do %>
+        <div class="bg-gray-50 px-5 py-3">
+          <div class="text-sm text-gray-500">
+            {@description}
+          </div>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  #
+  # Content Organization Components
+  #
+
+  @doc """
   Renders a section header with optional subtitle and actions.
   """
   attr :title, :string, required: true
@@ -251,6 +352,34 @@ defmodule BeamFlowWeb.DashboardComponents do
     </div>
     """
   end
+
+  @doc """
+  Renders a panel with heading and optional content
+  """
+  attr :class, :string, default: nil
+  attr :title, :string, default: nil
+  slot :inner_block, required: true
+
+  def panel(assigns) do
+    ~H"""
+    <div class={["bg-white shadow-md rounded-lg overflow-hidden", @class]}>
+      <%= if @title do %>
+        <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">
+            {@title}
+          </h3>
+        </div>
+      <% end %>
+      <div class="px-4 py-5 sm:p-6">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    """
+  end
+
+  #
+  # Action Components
+  #
 
   @doc """
   Renders a primary button
@@ -310,32 +439,164 @@ defmodule BeamFlowWeb.DashboardComponents do
     """
   end
 
-  @doc """
-  Renders a panel with heading and optional content
-  """
-  attr :class, :string, default: nil
-  attr :title, :string, default: nil
-  slot :inner_block, required: true
+  #
+  # Form Components
+  #
 
-  def panel(assigns) do
+  @doc """
+  Renders a filter form for consistent filtering across dashboards.
+  """
+  attr :id, :string, required: true
+  attr :form, :any, required: true
+  attr :phx_change, :string, default: "filter"
+  slot :filters, required: true
+
+  def filter_form(assigns) do
     ~H"""
-    <div class={["bg-white shadow-md rounded-lg overflow-hidden", @class]}>
-      <%= if @title do %>
-        <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
-          <h3 class="text-lg leading-6 font-medium text-gray-900">
-            {@title}
-          </h3>
+    <.panel title="Filter" class="mb-8">
+      <.form for={@form} id={@id} phx-change={@phx_change}>
+        <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+          {render_slot(@filters)}
         </div>
-      <% end %>
-      <div class="px-4 py-5 sm:p-6">
-        {render_slot(@inner_block)}
+      </.form>
+    </.panel>
+    """
+  end
+
+  @doc """
+  Renders tag selection component.
+  """
+  attr :field, Phoenix.HTML.FormField, required: true
+  attr :options, :list, required: true
+  attr :label, :string, default: "Tags"
+
+  def tag_selector(assigns) do
+    ~H"""
+    <div class="space-y-2">
+      <.label for={@field.id}>{@label}</.label>
+      <div class="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-md border border-gray-200 min-h-16">
+        <%= for {tag_id, tag_name, selected} <- @options do %>
+          <div class={[
+            "px-3 py-1 rounded-full text-sm font-medium cursor-pointer",
+            selected && "bg-indigo-100 text-indigo-800 border border-indigo-300",
+            !selected && "bg-gray-100 text-gray-800 border border-gray-200 hover:bg-gray-200"
+          ]}>
+            <label class="cursor-pointer flex items-center space-x-1">
+              <input
+                type="checkbox"
+                name={"#{@field.name}[]"}
+                value={tag_id}
+                checked={selected}
+                class="hidden"
+              />
+              <span>{tag_name}</span>
+              <%= if selected do %>
+                <.icon name="hero-check" class="h-4 w-4 text-indigo-600" />
+              <% end %>
+            </label>
+          </div>
+        <% end %>
       </div>
     </div>
     """
   end
 
-  # Helper functions for dashboard types
+  #
+  # Status and Data Display Components
+  #
 
+  @doc """
+  Renders a status badge with color coding based on status.
+  """
+  attr :status, :string, required: true
+  # sm, md, lg
+  attr :size, :string, default: "md"
+
+  def status_badge(assigns) do
+    assigns = assign(assigns, :badge_class, status_badge_classes(assigns.status, assigns.size))
+
+    ~H"""
+    <span class={@badge_class}>
+      {@status}
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a simple data list item with title and value.
+  """
+  attr :title, :string, required: true
+  attr :value, :string, required: true
+
+  def data_item(assigns) do
+    ~H"""
+    <div class="py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:py-5">
+      <dt class="text-sm font-medium text-gray-500">{@title}</dt>
+      <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{@value}</dd>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders an activity log item.
+  """
+  # Changed from :map to :any for flexibility
+  attr :user, :any, required: true
+  attr :action, :string, required: true
+  attr :resource_type, :string, required: true
+  attr :resource_id, :string, default: nil
+  attr :timestamp, :any, required: true
+  attr :details, :string, default: nil
+
+  def activity_log_item(assigns) do
+    # Handle potentially unloaded user associations
+    user_name = get_user_name(assigns.user)
+    first_letter = String.first(user_name || "?")
+
+    assigns = assign(assigns, :user_name, user_name)
+    assigns = assign(assigns, :first_letter, first_letter)
+
+    ~H"""
+    <div class="relative pb-8">
+      <span class="absolute top-5 left-5 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+      <div class="relative flex items-start space-x-3">
+        <div class="relative">
+          <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+            <span class="text-gray-600 font-medium">{@first_letter}</span>
+          </div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div>
+            <div class="text-sm">
+              <span class="font-medium text-gray-900">{@user_name}</span>
+              <span class="text-gray-500">
+                <span>{@action}</span>
+                <span class="font-medium text-gray-900">{@resource_type}</span>
+                <%= if @resource_id do %>
+                  <span class="text-gray-500">#{@resource_id}</span>
+                <% end %>
+              </span>
+            </div>
+            <p class="mt-0.5 text-sm text-gray-500">
+              {format_timestamp(@timestamp)}
+            </p>
+          </div>
+          <%= if @details do %>
+            <div class="mt-2 text-sm text-gray-700">
+              <p>{@details}</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  #
+  # Helper functions
+  #
+
+  # Helper functions for dashboard types
   defp dashboard_bg_color(:admin), do: "bg-zinc-800"
   defp dashboard_bg_color(:editor), do: "bg-teal-800"
   defp dashboard_bg_color(:author), do: "bg-cyan-800"
@@ -357,7 +618,6 @@ defmodule BeamFlowWeb.DashboardComponents do
   defp dashboard_brand_name(_everyone_else), do: "BeamFlow Dashboard"
 
   # Path helper functions based on dashboard type
-
   defp get_dashboard_home_path(:admin), do: ~p"/admin"
   defp get_dashboard_home_path(:editor), do: ~p"/editor"
   defp get_dashboard_home_path(:author), do: ~p"/author"
@@ -371,7 +631,6 @@ defmodule BeamFlowWeb.DashboardComponents do
   defp get_new_post_path(:author), do: ~p"/author/posts/new"
 
   # Helper function to add color classes based on the color attribute
-  # This reduces the complexity of the dashboard_card function
   defp add_color_classes(assigns) do
     bg_color = get_bg_color(assigns.color)
     text_color = get_text_color(assigns.color)
@@ -417,5 +676,80 @@ defmodule BeamFlowWeb.DashboardComponents do
       "purple" -> "hover:text-purple-500"
       _other -> "hover:text-indigo-500"
     end
+  end
+
+  defp status_badge_classes(status, size) do
+    base_classes = get_size_classes(size)
+    color_classes = get_status_color_classes(status)
+
+    "#{base_classes} #{color_classes}"
+  end
+
+  defp get_size_classes(size) do
+    case size do
+      "sm" -> "px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+      "md" -> "px-2.5 py-0.5 inline-flex text-sm leading-5 font-semibold rounded-full"
+      "lg" -> "px-3 py-1 inline-flex text-base leading-6 font-semibold rounded-full"
+      _other -> "px-2.5 py-0.5 inline-flex text-sm leading-5 font-semibold rounded-full"
+    end
+  end
+
+  defp get_status_color_classes(status) do
+    status_colors = %{
+      "draft" => "bg-gray-100 text-gray-800",
+      "published" => "bg-green-100 text-green-800",
+      "scheduled" => "bg-blue-100 text-blue-800",
+      "pending" => "bg-yellow-100 text-yellow-800",
+      "rejected" => "bg-red-100 text-red-800",
+      "approved" => "bg-green-100 text-green-800",
+      "active" => "bg-green-100 text-green-800",
+      "inactive" => "bg-gray-100 text-gray-800"
+    }
+
+    Map.get(status_colors, status, "bg-gray-100 text-gray-800")
+  end
+
+  # Helper function to calculate percentage change
+  defp calculate_change_percentage(current, previous)
+       when is_number(current) and is_number(previous) and previous != 0 do
+    ((current - previous) / previous * 100)
+    |> Float.round(1)
+  end
+
+  defp calculate_change_percentage(_current, _previous), do: 0.0
+
+  # Helper function to determine change type
+  defp determine_change_type(current, previous) when is_number(current) and is_number(previous) do
+    cond do
+      current > previous -> :increase
+      current < previous -> :decrease
+      true -> :neutral
+    end
+  end
+
+  defp determine_change_type(_current, _previous), do: :neutral
+
+  # Helper function to safely get user name
+  defp get_user_name(user) do
+    cond do
+      is_map(user) && Map.has_key?(user, :name) -> user.name
+      is_map(user) && Map.has_key?(user, "name") -> user["name"]
+      is_binary(user) -> user
+      true -> "Unknown User"
+    end
+  end
+
+  # Helper function to format timestamps
+  defp format_timestamp(timestamp) do
+    case timestamp do
+      %DateTime{} = dt -> Calendar.strftime(dt, "%b %d, %Y %H:%M")
+      %NaiveDateTime{} = ndt -> Calendar.strftime(ndt, "%b %d, %Y %H:%M")
+      _unknown -> "unknown time"
+    end
+  end
+
+  # Simple helper for formatting currency without external dependencies
+  defp format_currency(value) do
+    "$#{:erlang.float_to_binary(value * 1.0, decimals: 2)}"
   end
 end

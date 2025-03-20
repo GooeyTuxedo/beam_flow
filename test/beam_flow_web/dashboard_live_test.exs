@@ -34,7 +34,7 @@ defmodule BeamFlowWeb.DashboardLiveTest do
 
       # Test that dashboard shows the expected sections
       assert html =~ "Editor Dashboard"
-      assert has_element?(view, "h2", "Pending Approvals")
+      assert has_element?(view, "h3", "Pending Approvals")
 
       # Test dashboard cards
       assert has_element?(view, "[data-test-id='dashboard-card']", "Posts")
@@ -51,7 +51,7 @@ defmodule BeamFlowWeb.DashboardLiveTest do
 
       # Test that dashboard shows the expected sections
       assert html =~ "Author Dashboard"
-      assert has_element?(view, "h2", "Recent Posts")
+      assert has_element?(view, "h3", "Recent Posts")
 
       # Test dashboard cards
       assert has_element?(view, "[data-test-id='dashboard-card']", "My Posts")
