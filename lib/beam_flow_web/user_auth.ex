@@ -6,6 +6,7 @@ defmodule BeamFlowWeb.UserAuth do
   import Phoenix.Controller
 
   alias BeamFlow.Accounts
+  alias BeamFlow.Logger
 
   # Make the remember me cookie valid for 60 days.
   # If you want bump or reduce this value, also change
@@ -29,6 +30,12 @@ defmodule BeamFlowWeb.UserAuth do
   def log_in_user(conn, user, params \\ %{}) do
     token = Accounts.generate_user_session_token(user, params["remember_me"] == "true")
     user_return_to = get_session(conn, :user_return_to)
+
+    # Log the authentication event
+    Logger.auth_event(:login_success, user,
+      return_to: user_return_to,
+      remember_me: params["remember_me"] == "true"
+    )
 
     conn
     |> renew_session()
@@ -77,6 +84,11 @@ defmodule BeamFlowWeb.UserAuth do
     user_token = get_session(conn, :user_token)
     user_token && Accounts.delete_user_session_token(user_token)
 
+    # Log the logout event using the current_user from conn
+    if user = conn.assigns[:current_user] do
+      Logger.auth_event(:logout, user)
+    end
+
     if live_socket_id = get_session(conn, :live_socket_id) do
       BeamFlowWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
     end
@@ -94,6 +106,12 @@ defmodule BeamFlowWeb.UserAuth do
   def fetch_current_user(conn, _opts) do
     {user_token, conn} = ensure_user_token(conn)
     user = user_token && Accounts.get_user_by_session_token(user_token)
+
+    # Add user context to logger if user is present
+    if user do
+      Logger.put_user_context(user)
+    end
+
     assign(conn, :current_user, user)
   end
 
@@ -188,6 +206,9 @@ defmodule BeamFlowWeb.UserAuth do
   """
   def redirect_if_user_is_authenticated(conn, _opts) do
     if conn.assigns[:current_user] do
+      # Log the redirect for authenticated user
+      Logger.info("Redirecting authenticated user from #{conn.request_path}")
+
       conn
       |> redirect(to: signed_in_path(conn))
       |> halt()
@@ -206,6 +227,12 @@ defmodule BeamFlowWeb.UserAuth do
     if conn.assigns[:current_user] do
       conn
     else
+      # Log the authentication failure
+      Logger.auth_event(:access_denied, nil,
+        path: conn.request_path,
+        method: conn.method
+      )
+
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()

@@ -10,7 +10,6 @@ defmodule BeamFlow.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      # Add ExCoveralls configuration
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         coveralls: :test,
@@ -19,7 +18,6 @@ defmodule BeamFlow.MixProject do
         "coveralls.html": :test,
         "coveralls.json": :test
       ],
-      # Define coverage thresholds
       excoveralls: [
         minimum_coverage: 90,
         terminal_output: "console",
@@ -38,11 +36,12 @@ defmodule BeamFlow.MixProject do
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_else), do: ["lib"]
+  defp elixirc_paths(_other_env), do: ["lib"]
 
   # Specifies your project dependencies.
   defp deps do
     [
+      {:argon2_elixir, "~> 4.0"},
       {:bcrypt_elixir, "~> 3.0"},
       {:phoenix, "~> 1.7.20"},
       {:phoenix_ecto, "~> 4.5"},
@@ -63,21 +62,18 @@ defmodule BeamFlow.MixProject do
        depth: 1},
       {:swoosh, "~> 1.5"},
       {:finch, "~> 0.13"},
-      {:telemetry_metrics, "~> 1.0"},
-      {:telemetry_poller, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.1"},
+      {:telemetry_poller, "~> 1.1"},
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.1.1"},
+      {:dns_cluster, "~> 0.1"},
       {:bandit, "~> 1.5"},
-
-      # Add ExCoveralls dependency
-      {:excoveralls, "~> 0.18", only: :test},
-
-      # Add Argon2 for password hashing
-      {:argon2_elixir, "~> 4.0"},
-
-      # Add Credo for code quality checks
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:logger_json, "~> 6.2.1"},
+      {:ecto_logger_json, "~> 0.1"},
+      {:plug_logger_json, "~> 0.7"},
+      {:plug, "~> 1.17"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 

@@ -66,7 +66,10 @@ config :beam_flow, BeamFlowWeb.Endpoint,
 config :beam_flow, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+config :logger, :console,
+  format: "[$level] $message\n",
+  level: :debug,
+  metadata: [:request_id, :user_id, :role, :ip, :method, :path]
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.

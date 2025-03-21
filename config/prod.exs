@@ -14,7 +14,15 @@ config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: BeamFlow.Finch
 config :swoosh, local: false
 
 # Do not print debug messages in production
-config :logger, level: :info
+config :logger,
+  level: :info,
+  backends: [LoggerJSON]
+
+config :logger_json, :backend,
+  metadata: [:request_id, :user_id, :role, :ip, :method, :path, :status, :duration],
+  json_encoder: Jason,
+  formatter: LoggerJSON.Formatters.Basic,
+  on_init: {BeamFlow.LoggerJSON.Config, :setup, []}
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

@@ -16,7 +16,47 @@ defmodule BeamFlowWeb.Telemetry do
       # {Telemetry.Metrics.ConsoleReporter, metrics: metrics()}
     ]
 
+    # Attach handler for slow query logging
+    :ok =
+      :telemetry.attach(
+        "beam-flow-logger-handler",
+        [:beam_flow, :repo, :query],
+        &__MODULE__.handle_query_event/4,
+        nil
+      )
+
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  @doc """
+  Handles telemetry events for database queries.
+  Logs slow queries for monitoring purposes.
+  """
+  def handle_query_event([:beam_flow, :repo, :query], measurements, metadata, _config) do
+    duration = System.convert_time_unit(measurements.total_time, :native, :millisecond)
+
+    # Only log queries that take longer than 50ms
+    if duration > 50 do
+      query = metadata.query
+      source = metadata[:source]
+
+      # Prepare query text for logging, truncate if too long
+      query_text =
+        if String.length(query) > 500 do
+          String.slice(query, 0, 500) <> "... [truncated]"
+        else
+          query
+        end
+
+      # Log slow query
+      # Use our custom logger
+      alias BeamFlow.Logger
+
+      Logger.warn("Slow query (#{duration}ms)",
+        query: query_text,
+        source: source
+      )
+    end
   end
 
   def metrics do
