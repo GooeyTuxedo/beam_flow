@@ -73,7 +73,13 @@ defmodule BeamFlow.MixProject do
       {:plug_logger_json, "~> 0.7"},
       {:plug, "~> 1.17"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:excoveralls, "~> 0.18", only: :test}
+      {:excoveralls, "~> 0.18", only: :test},
+      {:opentelemetry, "~> 1.3"},
+      {:opentelemetry_api, "~> 1.2"},
+      {:opentelemetry_exporter, "~> 1.4"},
+      {:opentelemetry_phoenix, "~> 1.1"},
+      {:opentelemetry_ecto, "~> 1.1"},
+      {:opentelemetry_semantic_conventions, "~> 0.2"}
     ]
   end
 

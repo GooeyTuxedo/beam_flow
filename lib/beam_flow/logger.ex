@@ -26,6 +26,7 @@ defmodule BeamFlow.Logger do
   Logs a message at debug level with context metadata.
   """
   def debug(message, metadata \\ []) do
+    metadata = maybe_add_trace_context(metadata)
     Logger.debug(message, metadata: sanitize_metadata(metadata))
   end
 
@@ -33,6 +34,7 @@ defmodule BeamFlow.Logger do
   Logs a message at info level with context metadata.
   """
   def info(message, metadata \\ []) do
+    metadata = maybe_add_trace_context(metadata)
     Logger.info(message, metadata: sanitize_metadata(metadata))
   end
 
@@ -40,6 +42,7 @@ defmodule BeamFlow.Logger do
   Logs a message at warning level with context metadata.
   """
   def warn(message, metadata \\ []) do
+    metadata = maybe_add_trace_context(metadata)
     Logger.warning(message, metadata: sanitize_metadata(metadata))
   end
 
@@ -47,6 +50,7 @@ defmodule BeamFlow.Logger do
   Logs a message at error level with context metadata.
   """
   def error(message, metadata \\ []) do
+    metadata = maybe_add_trace_context(metadata)
     Logger.error(message, metadata: sanitize_metadata(metadata))
   end
 
@@ -54,6 +58,7 @@ defmodule BeamFlow.Logger do
   Logs an audit event with user info and action details.
   """
   def audit(action, user_or_id, details \\ %{}, metadata \\ []) do
+    metadata = maybe_add_trace_context(metadata)
     {user_id, role} = extract_user_info(user_or_id)
 
     audit_metadata =
@@ -93,6 +98,7 @@ defmodule BeamFlow.Logger do
   Logs a user authentication event.
   """
   def auth_event(event, user_or_id, metadata \\ []) do
+    metadata = maybe_add_trace_context(metadata)
     {user_id, role} = extract_user_info(user_or_id)
 
     auth_metadata =
@@ -134,6 +140,21 @@ defmodule BeamFlow.Logger do
     Logger.metadata(Keyword.drop(metadata, [:user_id, :role]))
   end
 
+  @doc """
+  Updates logger metadata with trace context from the current span.
+  """
+  def add_trace_context do
+    trace_id = BeamFlow.Tracer.current_trace_id()
+    span_id = BeamFlow.Tracer.current_span_id()
+
+    if trace_id && span_id do
+      Logger.metadata(
+        trace_id: trace_id,
+        span_id: span_id
+      )
+    end
+  end
+
   # Private functions
 
   # Record audit log to database using the existing AuditLog module
@@ -154,6 +175,24 @@ defmodule BeamFlow.Logger do
       resource_type: resource_type,
       resource_id: resource_id
     )
+  end
+
+  # Helper to add trace context if not provided
+  defp maybe_add_trace_context(metadata) do
+    if Keyword.has_key?(metadata, :trace_id) do
+      metadata
+    else
+      trace_id = BeamFlow.Tracer.current_trace_id()
+      span_id = BeamFlow.Tracer.current_span_id()
+
+      if trace_id && span_id && is_binary(trace_id) && is_binary(span_id) do
+        metadata
+        |> Keyword.put(:trace_id, trace_id)
+        |> Keyword.put(:span_id, span_id)
+      else
+        metadata
+      end
+    end
   end
 
   # Extract resource information from details if possible

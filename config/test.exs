@@ -33,6 +33,11 @@ config :swoosh, :api_client, false
 config :logger, level: :warning
 config :logger, :console, format: "[$level] $message\n"
 
+config :opentelemetry, :processors,
+  otel_batch_processor: %{
+    exporter: :none
+  }
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 

@@ -24,5 +24,16 @@ config :logger_json, :backend,
   formatter: LoggerJSON.Formatters.Basic,
   on_init: {BeamFlow.LoggerJSON.Config, :setup, []}
 
+config :opentelemetry, :processors,
+  otel_batch_processor: %{
+    exporter: {
+      :opentelemetry_exporter,
+      %{
+        endpoint: "http://otel-collector:4318/v1/traces",
+        protocol: :http_protobuf
+      }
+    }
+  }
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

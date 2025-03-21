@@ -7,6 +7,8 @@ defmodule BeamFlow.Application do
 
   @impl true
   def start(_type, _args) do
+    :ok = setup_opentelemetry()
+
     children = [
       BeamFlowWeb.Telemetry,
       BeamFlow.Repo,
@@ -33,6 +35,13 @@ defmodule BeamFlow.Application do
   @impl true
   def config_change(changed, _new, removed) do
     BeamFlowWeb.Endpoint.config_change(changed, removed)
+    :ok
+  end
+
+  defp setup_opentelemetry do
+    # Set up automatic instrumentation for Phoenix and Ecto
+    :ok = OpentelemetryPhoenix.setup([])
+    :ok = OpentelemetryEcto.setup([:beam_flow, :repo])
     :ok
   end
 end

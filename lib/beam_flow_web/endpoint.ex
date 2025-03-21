@@ -36,6 +36,7 @@ defmodule BeamFlowWeb.Endpoint do
 
   plug Plug.RequestId
   plug BeamFlow.Plugs.RequestLogger
+  plug BeamFlow.Plugs.TraceContext
   # plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,
