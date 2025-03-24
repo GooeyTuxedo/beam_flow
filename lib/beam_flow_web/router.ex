@@ -15,6 +15,14 @@ defmodule BeamFlowWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug :fetch_session
+    plug :fetch_current_user
+    plug BeamFlow.Plugs.RequestLogger
+    plug BeamFlow.Plugs.TraceContext
+  end
+
+  pipeline :api_authenticated do
+    plug BeamFlowWeb.Plugs.APIAuth
   end
 
   pipeline :admin do
@@ -169,6 +177,36 @@ defmodule BeamFlowWeb.Router do
       live "/posts/new", PostLive.Index, :new
       live "/posts/:id/edit", PostLive.Index, :edit
       live "/posts/:id", PostLive.Show, :show
+    end
+  end
+
+  # API routes for our RESTful API
+  scope "/api", BeamFlowWeb.API do
+    pipe_through :api
+
+    scope "/auth" do
+      post "/token", AuthController, :create
+
+      scope "/" do
+        pipe_through :api_authenticated
+        delete "/token", AuthController, :delete
+      end
+    end
+
+    scope "/v1", V1 do
+      # Public endpoints
+      get "/posts", PostController, :index
+      get "/posts/:id", PostController, :show
+
+      # Protected endpoints
+      scope "/" do
+        pipe_through :api_authenticated
+
+        post "/posts", PostController, :create
+        put "/posts/:id", PostController, :update
+        patch "/posts/:id", PostController, :update
+        delete "/posts/:id", PostController, :delete
+      end
     end
   end
 end

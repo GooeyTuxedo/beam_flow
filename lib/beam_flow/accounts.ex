@@ -436,4 +436,47 @@ defmodule BeamFlow.Accounts do
     |> where([u], u.role == ^role)
     |> Repo.all()
   end
+
+  @doc """
+  Generates an API token for the user.
+  """
+  def generate_api_token(user) do
+    {token, user_token} = UserToken.build_api_token(user)
+    Repo.insert!(user_token)
+    token
+  end
+
+  @doc """
+  Gets a user by API token.
+  """
+  def get_user_by_api_token(token) do
+    with {:ok, decoded_token} <- Base.url_decode64(token, padding: false),
+         hashed_token = :crypto.hash(:sha256, decoded_token),
+         %UserToken{user_id: user_id} <-
+           Repo.get_by(UserToken, token: hashed_token, context: "api"),
+         %User{} = user <- Repo.get(User, user_id) do
+      user
+    else
+      _error -> nil
+    end
+  end
+
+  @doc """
+  Revokes an API token.
+  """
+  def revoke_api_token(token) do
+    # Fix with statement ending with <- clause
+    with {:ok, decoded_token} <- Base.url_decode64(token, padding: false) do
+      hashed_token = :crypto.hash(:sha256, decoded_token)
+
+      {count, _deleted} =
+        Repo.delete_all(
+          from t in UserToken, where: t.token == ^hashed_token and t.context == "api"
+        )
+
+      if count > 0, do: :ok, else: :error
+    else
+      _error -> :error
+    end
+  end
 end
