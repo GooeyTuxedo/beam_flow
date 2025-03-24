@@ -7,45 +7,64 @@ defmodule BeamFlowWeb.Plugs.APIAuth do
 
   alias BeamFlow.Accounts
   alias BeamFlow.Logger
+  alias BeamFlow.Tracer
+
+  require BeamFlow.Tracer
+  require OpenTelemetry.Tracer
 
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    case get_token_from_header(conn) do
-      nil ->
-        conn
-        |> put_resp_content_type("application/json")
-        |> send_resp(
-          401,
-          Jason.encode!(%{error: %{status: 401, message: "Authentication required"}})
-        )
-        |> halt()
+    Tracer.with_span "api.auth.authenticate", %{
+      path: conn.request_path,
+      method: conn.method,
+      client_ip: format_ip(conn.remote_ip)
+    } do
+      case get_token_from_header(conn) do
+        nil ->
+          Tracer.add_event("auth.no_token", %{})
+          Tracer.set_error("Authentication required")
 
-      token ->
-        case Accounts.get_user_by_api_token(token) do
-          nil ->
-            Logger.warn("Invalid API token used", ip: format_ip(conn.remote_ip))
+          conn
+          |> put_resp_content_type("application/json")
+          |> send_resp(
+            401,
+            Jason.encode!(%{error: %{status: 401, message: "Authentication required"}})
+          )
+          |> halt()
 
-            conn
-            |> put_resp_content_type("application/json")
-            |> send_resp(401, Jason.encode!(%{error: %{status: 401, message: "Invalid token"}}))
-            |> halt()
+        token ->
+          case Accounts.get_user_by_api_token(token) do
+            nil ->
+              Logger.warn("Invalid API token used", ip: format_ip(conn.remote_ip))
 
-          user ->
-            # Add trace attributes with proper require
-            require BeamFlow.Tracer
+              Tracer.add_event("auth.invalid_token", %{})
+              Tracer.set_error("Invalid token")
 
-            BeamFlow.Tracer.set_attributes(%{
-              "user.id" => user.id,
-              "user.role" => user.role
-            })
+              conn
+              |> put_resp_content_type("application/json")
+              |> send_resp(401, Jason.encode!(%{error: %{status: 401, message: "Invalid token"}}))
+              |> halt()
 
-            Logger.put_user_context(user)
+            user ->
+              # Add trace attributes with proper require
+              Tracer.set_attributes(%{
+                "user.id" => user.id,
+                "user.role" => user.role
+              })
 
-            conn
-            |> assign(:current_user, user)
-            |> assign(:api_authenticated, true)
-        end
+              Tracer.add_event("auth.successful", %{
+                user_id: user.id,
+                role: user.role
+              })
+
+              Logger.put_user_context(user)
+
+              conn
+              |> assign(:current_user, user)
+              |> assign(:api_authenticated, true)
+          end
+      end
     end
   end
 
@@ -56,7 +75,6 @@ defmodule BeamFlowWeb.Plugs.APIAuth do
     end
   end
 
-  # Fix pipe chain
   defp format_ip(ip) when is_tuple(ip), do: to_string(:inet.ntoa(ip))
   defp format_ip(_ip), do: "unknown"
 end

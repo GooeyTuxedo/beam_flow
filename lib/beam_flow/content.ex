@@ -7,8 +7,12 @@ defmodule BeamFlow.Content do
   import Ecto.Changeset, only: [put_change: 3, get_field: 2]
   import Ecto.Query, warn: false
 
+  require BeamFlow.Tracer
+  require OpenTelemetry.Tracer
+
   alias BeamFlow.Content.Post
   alias BeamFlow.Repo
+  alias BeamFlow.Tracer
   alias BeamFlow.Utils.Slugifier
 
   @doc """
@@ -21,9 +25,11 @@ defmodule BeamFlow.Content do
 
   """
   def list_posts do
-    Post
-    |> Repo.all()
-    |> Repo.preload(:user)
+    Tracer.with_span "content.list_posts" do
+      Post
+      |> Repo.all()
+      |> Repo.preload(:user)
+    end
   end
 
   @doc """
@@ -36,38 +42,51 @@ defmodule BeamFlow.Content do
 
   """
   def list_posts(criteria) do
-    query = from(p in Post)
+    Tracer.with_span "content.list_posts.filtered", %{
+      criteria_count: length(criteria)
+    } do
+      query = from(p in Post)
 
-    query =
-      Enum.reduce(criteria, query, fn
-        {:status, status}, query ->
-          from q in query, where: q.status == ^status
+      query =
+        Enum.reduce(criteria, query, fn
+          {:status, status}, query ->
+            Tracer.add_event("filter.status", %{status: status})
+            from q in query, where: q.status == ^status
 
-        {:user_id, user_id}, query ->
-          from q in query, where: q.user_id == ^user_id
+          {:user_id, user_id}, query ->
+            Tracer.add_event("filter.user_id", %{user_id: user_id})
+            from q in query, where: q.user_id == ^user_id
 
-        {:search, search_term}, query ->
-          search_term = "%#{search_term}%"
+          {:search, search_term}, query ->
+            Tracer.add_event("filter.search", %{term: search_term})
+            search_term = "%#{search_term}%"
 
-          from q in query,
-            where:
-              ilike(q.title, ^search_term) or
-                ilike(q.content, ^search_term) or
-                ilike(q.excerpt, ^search_term)
+            from q in query,
+              where:
+                ilike(q.title, ^search_term) or
+                  ilike(q.content, ^search_term) or
+                  ilike(q.excerpt, ^search_term)
 
-        {:order_by, {field, direction}}, query ->
-          from q in query, order_by: [{^direction, ^field}]
+          {:order_by, {field, direction}}, query ->
+            Tracer.add_event("filter.order_by", %{field: field, direction: direction})
+            from q in query, order_by: [{^direction, ^field}]
 
-        {:limit, limit}, query ->
-          from q in query, limit: ^limit
+          {:limit, limit}, query ->
+            Tracer.add_event("filter.limit", %{limit: limit})
+            from q in query, limit: ^limit
 
-        _query, query ->
-          query
-      end)
+          _query, query ->
+            query
+        end)
 
-    query
-    |> Repo.all()
-    |> Repo.preload(:user)
+      results =
+        query
+        |> Repo.all()
+        |> Repo.preload(:user)
+
+      Tracer.set_attributes(%{result_count: length(results)})
+      results
+    end
   end
 
   @doc """
@@ -85,9 +104,16 @@ defmodule BeamFlow.Content do
 
   """
   def get_post!(id) do
-    Post
-    |> Repo.get!(id)
-    |> Repo.preload(:user)
+    Tracer.with_span "content.get_post", %{post_id: id} do
+      Post
+      |> Repo.get!(id)
+      |> Repo.preload(:user)
+    end
+  rescue
+    e in Ecto.NoResultsError ->
+      Tracer.set_error("Post not found")
+      Tracer.record_exception(e, __STACKTRACE__)
+      reraise e, __STACKTRACE__
   end
 
   @doc """
@@ -105,9 +131,20 @@ defmodule BeamFlow.Content do
 
   """
   def get_post_by_slug(slug) do
-    Post
-    |> Repo.get_by(slug: slug)
-    |> Repo.preload(:user)
+    Tracer.with_span "content.get_post_by_slug", %{slug: slug} do
+      result =
+        Post
+        |> Repo.get_by(slug: slug)
+        |> Repo.preload(:user)
+
+      if result do
+        Tracer.add_event("post.found", %{id: result.id})
+      else
+        Tracer.add_event("post.not_found", %{})
+      end
+
+      result
+    end
   end
 
   @doc """
@@ -123,13 +160,35 @@ defmodule BeamFlow.Content do
 
   """
   def create_post(attrs \\ %{}) do
-    %Post{}
-    |> Post.create_changeset(attrs)
-    |> ensure_unique_slug()
-    |> Repo.insert()
-    |> case do
-      {:ok, post} -> {:ok, Repo.preload(post, :user)}
-      error -> error
+    Tracer.with_span "content.create_post" do
+      # Extract useful attributes for tracing
+      title = Map.get(attrs, "title", Map.get(attrs, :title, "unknown"))
+      user_id = Map.get(attrs, "user_id", Map.get(attrs, :user_id))
+      status = Map.get(attrs, "status", Map.get(attrs, :status, "draft"))
+
+      Tracer.set_attributes(%{
+        title: title,
+        user_id: user_id,
+        status: status
+      })
+
+      %Post{}
+      |> Post.create_changeset(attrs)
+      |> ensure_unique_slug()
+      |> Repo.insert()
+      |> case do
+        {:ok, post} ->
+          Tracer.add_event("post.created", %{id: post.id, slug: post.slug})
+          {:ok, Repo.preload(post, :user)}
+
+        {:error, changeset} ->
+          Tracer.add_event("post.validation_failed", %{
+            errors: inspect(changeset.errors)
+          })
+
+          Tracer.set_error("Validation failed")
+          {:error, changeset}
+      end
     end
   end
 
@@ -146,13 +205,29 @@ defmodule BeamFlow.Content do
 
   """
   def update_post(%Post{} = post, attrs) do
-    post
-    |> Post.changeset(attrs)
-    |> ensure_unique_slug()
-    |> Repo.update()
-    |> case do
-      {:ok, post} -> {:ok, Repo.preload(post, :user)}
-      error -> error
+    Tracer.with_span "content.update_post", %{post_id: post.id} do
+      Tracer.add_event("post.update_started", %{
+        title: Map.get(attrs, "title", Map.get(attrs, :title, post.title)),
+        status: Map.get(attrs, "status", Map.get(attrs, :status, post.status))
+      })
+
+      post
+      |> Post.changeset(attrs)
+      |> ensure_unique_slug()
+      |> Repo.update()
+      |> case do
+        {:ok, updated_post} ->
+          Tracer.add_event("post.updated", %{slug: updated_post.slug})
+          {:ok, Repo.preload(updated_post, :user)}
+
+        {:error, changeset} ->
+          Tracer.add_event("post.update_failed", %{
+            errors: inspect(changeset.errors)
+          })
+
+          Tracer.set_error("Update validation failed")
+          {:error, changeset}
+      end
     end
   end
 
@@ -169,7 +244,21 @@ defmodule BeamFlow.Content do
 
   """
   def delete_post(%Post{} = post) do
-    Repo.delete(post)
+    Tracer.with_span "content.delete_post", %{post_id: post.id, title: post.title} do
+      case Repo.delete(post) do
+        {:ok, deleted_post} ->
+          Tracer.add_event("post.deleted", %{})
+          {:ok, deleted_post}
+
+        {:error, changeset} ->
+          Tracer.add_event("post.delete_failed", %{
+            errors: inspect(changeset.errors)
+          })
+
+          Tracer.set_error("Delete failed")
+          {:error, changeset}
+      end
+    end
   end
 
   @doc """
@@ -195,8 +284,21 @@ defmodule BeamFlow.Content do
 
   """
   def publish_post(%Post{} = post) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
-    update_post(post, %{status: "published", published_at: now})
+    Tracer.with_span "content.publish_post", %{post_id: post.id, title: post.title} do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      Tracer.add_event("post.publishing", %{publish_time: now})
+
+      case update_post(post, %{status: "published", published_at: now}) do
+        {:ok, _published_post} = result ->
+          Tracer.add_event("post.published", %{})
+          result
+
+        {:error, _no_post} = error ->
+          Tracer.set_error("Failed to publish post")
+          error
+      end
+    end
   end
 
   # Ensures a slug is unique by appending a counter if necessary.
@@ -210,6 +312,11 @@ defmodule BeamFlow.Content do
         unique_slug = Slugifier.ensure_unique_slug(slug, &slug_exists?(&1, changeset))
 
         if slug != unique_slug do
+          Tracer.add_event("slug.modified", %{
+            original: slug,
+            modified: unique_slug
+          })
+
           put_change(changeset, :slug, unique_slug)
         else
           changeset

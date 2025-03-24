@@ -12,9 +12,18 @@ defmodule BeamFlowWeb.API.V1.PostController do
   require OpenTelemetry.Tracer
 
   def index(conn, params) do
-    Tracer.with_span "api.posts.index" do
+    Tracer.with_span "api.posts.index", %{
+      client_ip: format_ip(conn.remote_ip),
+      user_agent: get_user_agent(conn),
+      query_params: inspect(params)
+    } do
       filters = build_filters(params)
+
+      Tracer.add_event("filters.built", %{filters: inspect(filters)})
+
       posts = Content.list_posts(filters)
+
+      Tracer.add_event("response.generated", %{post_count: length(posts)})
 
       conn
       |> json(%{
@@ -24,12 +33,25 @@ defmodule BeamFlowWeb.API.V1.PostController do
   end
 
   def show(conn, %{"id" => id}) do
-    Tracer.with_span "api.posts.show", %{post_id: id} do
+    Tracer.with_span "api.posts.show", %{
+      post_id: id,
+      client_ip: format_ip(conn.remote_ip),
+      user_agent: get_user_agent(conn)
+    } do
       case get_post(id) do
         %Post{} = post ->
+          Tracer.add_event("post.found", %{
+            title: post.title,
+            status: post.status,
+            author_id: post.user_id
+          })
+
           conn |> json(%{data: post_to_json(post)})
 
         nil ->
+          Tracer.add_event("post.not_found", %{})
+          Tracer.set_error("Post not found")
+
           conn
           |> put_status(:not_found)
           |> json(%{error: %{status: 404, message: "Post not found"}})
@@ -40,15 +62,28 @@ defmodule BeamFlowWeb.API.V1.PostController do
   def create(conn, %{"post" => post_params}) do
     user = conn.assigns.current_user
 
-    Tracer.with_span "api.posts.create" do
+    Tracer.with_span "api.posts.create", %{
+      user_id: user.id,
+      role: user.role,
+      client_ip: format_ip(conn.remote_ip)
+    } do
       # Ensure user_id is set to the current user
       post_params = Map.put(post_params, "user_id", user.id)
 
+      Tracer.add_event("request.received", %{
+        title: Map.get(post_params, "title"),
+        status: Map.get(post_params, "status", "draft")
+      })
+
       case Auth.authorize(user, :create, {:post, nil}) do
         :ok ->
+          Tracer.add_event("authorization.success", %{})
           create_and_respond(conn, user, post_params)
 
         {:error, :unauthorized} ->
+          Tracer.add_event("authorization.failed", %{})
+          Tracer.set_error("Not authorized to create posts")
+
           conn
           |> put_status(:forbidden)
           |> json(%{error: %{status: 403, message: "Not authorized to create posts"}})
@@ -57,17 +92,32 @@ defmodule BeamFlowWeb.API.V1.PostController do
   end
 
   def update(conn, %{"id" => id, "post" => post_params}) do
-    Tracer.with_span "api.posts.update", %{post_id: id} do
+    Tracer.with_span "api.posts.update", %{
+      post_id: id,
+      user_id: conn.assigns.current_user.id,
+      role: conn.assigns.current_user.role,
+      client_ip: format_ip(conn.remote_ip)
+    } do
+      # Refactored to reduce nesting
       with %Post{} = post <- get_post(id),
            :ok <- Auth.authorize(conn.assigns.current_user, :update, {:post, post}) do
+        Tracer.add_event("authorization.success", %{})
+        Tracer.add_event("post.found", %{title: post.title, status: post.status})
+
         update_post_and_respond(conn, post, post_params)
       else
         nil ->
+          Tracer.add_event("post.not_found", %{})
+          Tracer.set_error("Post not found")
+
           conn
           |> put_status(:not_found)
           |> json(%{error: %{status: 404, message: "Post not found"}})
 
         {:error, :unauthorized} ->
+          Tracer.add_event("authorization.failed", %{})
+          Tracer.set_error("Not authorized to update post")
+
           conn
           |> put_status(:forbidden)
           |> json(%{error: %{status: 403, message: "Not authorized to update this post"}})
@@ -76,17 +126,32 @@ defmodule BeamFlowWeb.API.V1.PostController do
   end
 
   def delete(conn, %{"id" => id}) do
-    Tracer.with_span "api.posts.delete", %{post_id: id} do
+    Tracer.with_span "api.posts.delete", %{
+      post_id: id,
+      user_id: conn.assigns.current_user.id,
+      role: conn.assigns.current_user.role,
+      client_ip: format_ip(conn.remote_ip)
+    } do
+      # Refactored to reduce nesting
       with %Post{} = post <- get_post(id),
            :ok <- Auth.authorize(conn.assigns.current_user, :delete, {:post, post}) do
+        Tracer.add_event("authorization.success", %{})
+        Tracer.add_event("post.found", %{title: post.title, status: post.status})
+
         delete_post_and_respond(conn, post, id)
       else
         nil ->
+          Tracer.add_event("post.not_found", %{})
+          Tracer.set_error("Post not found")
+
           conn
           |> put_status(:not_found)
           |> json(%{error: %{status: 404, message: "Post not found"}})
 
         {:error, :unauthorized} ->
+          Tracer.add_event("authorization.failed", %{})
+          Tracer.set_error("Not authorized to delete post")
+
           conn
           |> put_status(:forbidden)
           |> json(%{error: %{status: 403, message: "Not authorized to delete this post"}})
@@ -108,12 +173,24 @@ defmodule BeamFlowWeb.API.V1.PostController do
       {:ok, post} ->
         Logger.audit("api.post.create", user, %{post_id: post.id})
 
+        Tracer.add_event("post.created", %{
+          post_id: post.id,
+          title: post.title,
+          slug: post.slug
+        })
+
         conn
         |> put_status(:created)
         |> put_resp_header("location", "/api/v1/posts/#{post.id}")
         |> json(%{data: post_to_json(post)})
 
       {:error, changeset} ->
+        Tracer.add_event("post.validation_failed", %{
+          errors: inspect(changeset.errors)
+        })
+
+        Tracer.set_error("Validation failed")
+
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{
@@ -132,9 +209,22 @@ defmodule BeamFlowWeb.API.V1.PostController do
     case Content.update_post(post, post_params) do
       {:ok, updated_post} ->
         Logger.audit("api.post.update", user, %{post_id: post.id})
+
+        Tracer.add_event("post.updated", %{
+          post_id: updated_post.id,
+          title: updated_post.title,
+          slug: updated_post.slug
+        })
+
         json(conn, %{data: post_to_json(updated_post)})
 
       {:error, changeset} ->
+        Tracer.add_event("post.update_failed", %{
+          errors: inspect(changeset.errors)
+        })
+
+        Tracer.set_error("Validation failed")
+
         conn
         |> put_status(:unprocessable_entity)
         |> json(%{
@@ -153,9 +243,14 @@ defmodule BeamFlowWeb.API.V1.PostController do
     case Content.delete_post(post) do
       {:ok, _post} ->
         Logger.audit("api.post.delete", user, %{post_id: id})
+
+        Tracer.add_event("post.deleted", %{})
+
         send_resp(conn, :no_content, "")
 
       {:error, _changeset} ->
+        Tracer.set_error("Failed to delete post")
+
         conn
         |> put_status(:internal_server_error)
         |> json(%{error: %{status: 500, message: "Failed to delete post"}})
@@ -237,5 +332,15 @@ defmodule BeamFlowWeb.API.V1.PostController do
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
     end)
+  end
+
+  defp format_ip(ip) when is_tuple(ip), do: to_string(:inet.ntoa(ip))
+  defp format_ip(_ip), do: "unknown"
+
+  defp get_user_agent(conn) do
+    case get_req_header(conn, "user-agent") do
+      [user_agent] -> user_agent
+      _other -> "unknown"
+    end
   end
 end
