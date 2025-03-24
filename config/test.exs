@@ -38,6 +38,8 @@ config :opentelemetry, :processors,
     exporter: :none
   }
 
+config :beam_flow, :async_logging, false
+
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 

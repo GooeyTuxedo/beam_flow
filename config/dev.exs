@@ -76,6 +76,8 @@ config :opentelemetry, :processors,
     exporter: {:opentelemetry_exporter, %{endpoint: "http://localhost:4318/v1/traces"}}
   }
 
+config :beam_flow, :async_logging, true
+
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20

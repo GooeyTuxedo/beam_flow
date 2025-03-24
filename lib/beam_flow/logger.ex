@@ -11,6 +11,9 @@ defmodule BeamFlow.Logger do
   alias BeamFlow.Accounts.AuditLog
   require Logger
 
+  # Add a mix environment check to control async behavior
+  @async_logging Application.compile_env(:beam_flow, :async_logging, true)
+
   @doc """
   Sets up hookable logging for LoggerJSON backend.
 
@@ -74,21 +77,9 @@ defmodule BeamFlow.Logger do
     # Log the audit event
     Logger.info(message, metadata: sanitize_metadata(audit_metadata))
 
-    # If we have a user model and details are a map, record to database
-    if is_map(details) and not is_nil(user_id) do
-      task =
-        Task.async(fn ->
-          record_audit_log(user_id, action, details)
-        end)
-
-      # We don't wait for the result but ensure errors are logged
-      Task.start(fn ->
-        try do
-          Task.await(task)
-        rescue
-          e -> Logger.error("Failed to record audit log: #{inspect(e)}")
-        end
-      end)
+    # Only proceed with database logging if we have required data
+    if should_record_to_database?(user_id, details) do
+      record_to_database(user_id, action, details)
     end
 
     :ok
@@ -193,6 +184,32 @@ defmodule BeamFlow.Logger do
         metadata
       end
     end
+  end
+
+  # Helper functions for audit to reduce nesting
+  # Check if we should record to database
+  defp should_record_to_database?(user_id, details) do
+    is_map(details) and not is_nil(user_id)
+  end
+
+  # Handle database recording with appropriate async/sync approach
+  defp record_to_database(user_id, action, details) do
+    if @async_logging and Mix.env() != :test do
+      # Only use async in non-test environments
+      Task.start(fn ->
+        log_with_error_handling(user_id, action, details)
+      end)
+    else
+      # In test environment, do it synchronously
+      log_with_error_handling(user_id, action, details)
+    end
+  end
+
+  # Handle the actual logging with error handling
+  defp log_with_error_handling(user_id, action, details) do
+    record_audit_log(user_id, action, details)
+  rescue
+    e -> Logger.error("Failed to record audit log: #{inspect(e)}")
   end
 
   # Extract resource information from details if possible
