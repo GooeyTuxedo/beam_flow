@@ -1,4 +1,4 @@
-# BeamFlow CMS Testing Pyramid Overview
+# BeamFlow CMS Testing Overview
 
 This document provides an overview of the testing strategy for the BeamFlow CMS project, explaining the different testing levels and when to use each approach.
 
@@ -6,28 +6,25 @@ This document provides an overview of the testing strategy for the BeamFlow CMS 
 
 The testing pyramid is a framework that helps teams create a balanced test suite. It visualizes the ideal distribution of tests across different levels of granularity.
 
-![Testing Pyramid](https://martinfowler.com/articles/practical-test-pyramid/testPyramid.png)
-
-For the BeamFlow CMS, we follow this pyramid approach with four distinct layers:
+For the BeamFlow CMS, we follow a modified pyramid approach with three distinct layers:
 
 1. **Unit Tests** (Base layer) - Fast tests focused on individual functions and modules
 2. **Integration Tests** (Middle layer) - Testing interactions between components
-3. **LiveView Tests** (Upper middle layer) - Testing LiveView components without a browser
-4. **End-to-End Tests** (Top layer) - Browser-based tests simulating real user interactions
+3. **LiveView Tests** (Top layer) - Testing LiveView components and user flows
 
 ## Characteristics of Each Test Level
 
 As you move up the pyramid:
 
-| Characteristic | Unit Tests | Integration Tests | LiveView Tests | End-to-End Tests |
-|----------------|------------|-------------------|----------------|------------------|
-| **Speed** | Very fast | Fast | Moderate | Slow |
-| **Setup Complexity** | Simple | Moderate | Moderate | Complex |
-| **Maintenance Cost** | Low | Medium | Medium | High |
-| **Confidence Level** | Low | Medium | High | Very High |
-| **Brittleness** | Low | Medium | Medium | High |
-| **Specificity** | High | Medium | Medium | Low |
-| **Number of Tests** | Many | Some | Some | Few |
+| Characteristic | Unit Tests | Integration Tests | LiveView Tests |
+|----------------|------------|-------------------|----------------|
+| **Speed** | Very fast | Fast | Moderate |
+| **Setup Complexity** | Simple | Moderate | Moderate |
+| **Maintenance Cost** | Low | Medium | Medium |
+| **Confidence Level** | Low | Medium | High |
+| **Brittleness** | Low | Medium | Medium |
+| **Specificity** | High | Medium | Medium |
+| **Number of Tests** | Many | Some | Some |
 
 ## When to Use Each Test Type
 
@@ -67,36 +64,26 @@ Integration tests verify that different components work together correctly, test
 
 ### LiveView Tests
 
-LiveView tests verify that LiveView components render correctly and handle user interactions properly without requiring a browser.
+LiveView tests verify LiveView components and flows, including rendering, event handling, form submissions, and complete user journeys.
 
 **Use LiveView tests for:**
-- LiveView rendering
+- LiveView rendering and display logic
 - LiveView event handling
 - LiveView component interactions
-- Form submissions
+- Form submissions and validations
 - UI state transitions
+- Complete user journeys
+- Multi-step workflows
+- Role-based access verification
+- Real-time feature verification
 
 **Example scenarios:**
 - Testing post list filtering
 - Testing form submissions and validations
 - Testing UI updates in response to events
-- Testing LiveView hooks and component interactions
-
-### End-to-End Tests
-
-End-to-end tests simulate real user interactions in a browser environment, verifying that all system components work together to deliver the expected user experience.
-
-**Use end-to-end tests for:**
-- Complete user journeys
-- Multi-step workflows
-- Browser-specific behavior
-- Real-time features
-- Responsive design (visual testing)
-
-**Example scenarios:**
-- Testing user registration and login flow
-- Testing post creation, editing, and publishing workflow
-- Testing role-based access control
+- Testing complete post creation and publishing flow
+- Testing user registration and login process
+- Testing role-specific access restrictions
 - Testing responsive UI behavior
 
 ## Recommended Test Distribution
@@ -105,8 +92,7 @@ For the BeamFlow CMS, we recommend the following distribution of tests:
 
 - **Unit Tests**: 60-70% of your test suite
 - **Integration Tests**: 20-25% of your test suite
-- **LiveView Tests**: 10-15% of your test suite
-- **End-to-End Tests**: 5-10% of your test suite
+- **LiveView Tests**: 15-20% of your test suite
 
 ## Testing Coverage Targets
 
@@ -114,8 +100,7 @@ For the BeamFlow CMS, we recommend the following distribution of tests:
 |-----------|----------------|-------|
 | **Unit Tests** | 90%+ code coverage | Every module, all business logic |
 | **Integration Tests** | Key workflows | Context interactions, authorization |
-| **LiveView Tests** | All LiveView modules | Events, rendering, form handling |
-| **End-to-End Tests** | Critical user journeys | Core workflows, role-based access |
+| **LiveView Tests** | All LiveView modules and critical user journeys | Events, rendering, form handling, user flows |
 
 ## Test Organization
 
@@ -133,10 +118,6 @@ test "publishes post and creates activity", do: # ...
 # LiveView test
 @tag :liveview
 test "filters posts by status", do: # ...
-
-# E2E test
-@tag :e2e
-test "author can create and edit posts", do: # ...
 ```
 
 This allows running specific test types:
@@ -145,11 +126,8 @@ This allows running specific test types:
 # Run only unit tests
 mix test --only unit
 
-# Run only E2E tests
-mix test --only e2e
-
-# Run all except E2E tests (faster for development)
-mix test --exclude e2e
+# Run only LiveView tests
+mix test --only liveview
 ```
 
 ## CI Pipeline Integration
@@ -159,8 +137,7 @@ Our CI pipeline runs tests in stages, with faster tests running first:
 1. **Static Analysis**: Code formatting and Credo checks
 2. **Unit Tests**: Run all unit tests
 3. **Integration Tests**: Run all integration tests
-4. **LiveView Tests**: Run all LiveView tests 
-5. **End-to-End Tests**: Run all end-to-end tests
+4. **LiveView Tests**: Run all LiveView tests
 
 This approach provides fast feedback for common issues while still ensuring comprehensive testing.
 
@@ -171,4 +148,3 @@ For detailed examples and best practices, refer to our specific testing guides:
 1. [Unit Testing Guide](unit-testing-guide.md)
 2. [Integration Testing Guide](integration-testing-guide.md)
 3. [LiveView Testing Guide](liveview-testing-guide.md)
-4. [End-to-End Testing Guide](e2e-testing-guide.md)
