@@ -18,12 +18,14 @@ defmodule BeamFlowWeb.UserResetPasswordLiveTest do
   end
 
   describe "Reset password page" do
+    @tag :liveview
     test "renders reset password with valid token", %{conn: conn, token: token} do
       {:ok, _lv, html} = live(conn, ~p"/users/reset_password/#{token}")
 
       assert html =~ "Reset Password"
     end
 
+    @tag :liveview
     test "does not render reset password with invalid token", %{conn: conn} do
       {:error, {:redirect, to}} = live(conn, ~p"/users/reset_password/invalid")
 
@@ -33,6 +35,7 @@ defmodule BeamFlowWeb.UserResetPasswordLiveTest do
              }
     end
 
+    @tag :liveview
     test "renders errors for invalid data", %{conn: conn, token: token} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset_password/#{token}")
 
@@ -51,6 +54,7 @@ defmodule BeamFlowWeb.UserResetPasswordLiveTest do
   end
 
   describe "Reset Password" do
+    @tag :liveview
     test "resets password once", %{conn: conn, token: token, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset_password/#{token}")
 
@@ -77,6 +81,7 @@ defmodule BeamFlowWeb.UserResetPasswordLiveTest do
       refute_redirected(lv, ~p"/users/reset_password/#{token}")
     end
 
+    @tag :liveview
     test "does not reset password on invalid data", %{conn: conn, token: token} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset_password/#{token}")
 
@@ -98,6 +103,7 @@ defmodule BeamFlowWeb.UserResetPasswordLiveTest do
   end
 
   describe "Reset password navigation" do
+    @tag :liveview
     test "redirects to login page when the Log in button is clicked", %{conn: conn, token: token} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset_password/#{token}")
 
@@ -110,6 +116,7 @@ defmodule BeamFlowWeb.UserResetPasswordLiveTest do
       assert conn.resp_body =~ "Log in"
     end
 
+    @tag :liveview
     test "redirects to registration page when the Register button is clicked", %{
       conn: conn,
       token: token

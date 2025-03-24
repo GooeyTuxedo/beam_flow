@@ -49,6 +49,7 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "list_posts/0" do
+    @tag :unit
     test "returns all posts" do
       post = post_fixture()
       posts = Content.list_posts()
@@ -57,6 +58,7 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "list_posts/1" do
+    @tag :unit
     test "filters by status" do
       draft_post = post_fixture()
       published_post = post_fixture(%{status: "published"})
@@ -68,6 +70,7 @@ defmodule BeamFlow.ContentTest do
       assert Enum.map(published_posts, & &1.id) == [published_post.id]
     end
 
+    @tag :unit
     test "filters by user_id" do
       user1 = user_fixture()
       user2 = user_fixture(%{email: "another@example.com"})
@@ -82,6 +85,7 @@ defmodule BeamFlow.ContentTest do
       assert Enum.map(user2_posts, & &1.id) == [post2.id]
     end
 
+    @tag :unit
     test "filters by search term" do
       post1 = post_fixture(%{title: "Unique title"})
       post2 = post_fixture(%{content: "Content with unique phrase"})
@@ -93,6 +97,7 @@ defmodule BeamFlow.ContentTest do
       assert results |> Enum.sort() == [post1.id, post2.id] |> Enum.sort()
     end
 
+    @tag :unit
     test "orders by field" do
       _post1 = post_fixture(%{title: "Z Post"})
       _post2 = post_fixture(%{title: "A Post"})
@@ -104,6 +109,7 @@ defmodule BeamFlow.ContentTest do
       assert Enum.map(desc_posts, & &1.title) == ["Z Post", "A Post"]
     end
 
+    @tag :unit
     test "limits results" do
       post_fixture()
       post_fixture()
@@ -115,11 +121,13 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "get_post!/1" do
+    @tag :unit
     test "returns the post with given id" do
       post = post_fixture()
       assert Content.get_post!(post.id).id == post.id
     end
 
+    @tag :unit
     test "raises if id is invalid" do
       assert_raise Ecto.NoResultsError, fn ->
         Content.get_post!(-1)
@@ -128,17 +136,20 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "get_post_by_slug/1" do
+    @tag :unit
     test "returns the post with given slug" do
       post = post_fixture(%{slug: "test-slug"})
       assert Content.get_post_by_slug("test-slug").id == post.id
     end
 
+    @tag :unit
     test "returns nil if slug is not found" do
       assert Content.get_post_by_slug("nonexistent-slug") == nil
     end
   end
 
   describe "create_post/1" do
+    @tag :unit
     test "with valid data creates a post" do
       user = user_fixture()
       attrs = Map.put(@valid_attrs, :user_id, user.id)
@@ -151,10 +162,12 @@ defmodule BeamFlow.ContentTest do
       assert post.user_id == user.id
     end
 
+    @tag :unit
     test "with invalid data returns error changeset" do
       assert {:error, %Ecto.Changeset{}} = Content.create_post(%{})
     end
 
+    @tag :unit
     test "generates a unique slug" do
       user = user_fixture()
       attrs = Map.put(@valid_attrs, :user_id, user.id)
@@ -173,6 +186,7 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "update_post/2" do
+    @tag :unit
     test "with valid data updates the post" do
       post = post_fixture()
       update_attrs = %{title: "Updated Title", content: "Updated content"}
@@ -182,12 +196,14 @@ defmodule BeamFlow.ContentTest do
       assert updated_post.content == "Updated content"
     end
 
+    @tag :unit
     test "with invalid data returns error changeset" do
       post = post_fixture()
       assert {:error, %Ecto.Changeset{}} = Content.update_post(post, %{title: nil})
       assert post.id == Content.get_post!(post.id).id
     end
 
+    @tag :unit
     test "maintains slug uniqueness on update" do
       _post1 = post_fixture(%{title: "First Post"})
       post2 = post_fixture(%{title: "Second Post"})
@@ -198,6 +214,7 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "delete_post/1" do
+    @tag :unit
     test "deletes the post" do
       post = post_fixture()
       assert {:ok, %Post{}} = Content.delete_post(post)
@@ -206,6 +223,7 @@ defmodule BeamFlow.ContentTest do
   end
 
   describe "publish_post/1" do
+    @tag :unit
     test "changes post status to published and sets published_at" do
       post = post_fixture()
       assert post.status == "draft"

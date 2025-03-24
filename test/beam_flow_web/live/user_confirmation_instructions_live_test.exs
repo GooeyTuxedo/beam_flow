@@ -12,11 +12,13 @@ defmodule BeamFlowWeb.UserConfirmationInstructionsLiveTest do
   end
 
   describe "Resend confirmation" do
+    @tag :liveview
     test "renders the resend confirmation page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/confirm")
       assert html =~ "Resend confirmation instructions"
     end
 
+    @tag :liveview
     test "sends a new confirmation token", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/confirm")
 
@@ -32,6 +34,7 @@ defmodule BeamFlowWeb.UserConfirmationInstructionsLiveTest do
       assert Repo.get_by!(Accounts.UserToken, user_id: user.id).context == "confirm"
     end
 
+    @tag :liveview
     test "does not send confirmation token if user is confirmed", %{conn: conn, user: user} do
       Repo.update!(Accounts.User.confirm_changeset(user))
 
@@ -49,6 +52,7 @@ defmodule BeamFlowWeb.UserConfirmationInstructionsLiveTest do
       refute Repo.get_by(Accounts.UserToken, user_id: user.id)
     end
 
+    @tag :liveview
     test "does not send confirmation token if email is invalid", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/confirm")
 

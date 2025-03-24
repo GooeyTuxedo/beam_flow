@@ -7,6 +7,7 @@ defmodule BeamFlowWeb.AuditSecurityTest do
   alias BeamFlow.Accounts
 
   describe "audit logging" do
+    @tag :integration
     test "login attempts are logged", %{conn: _conn} do
       # This test is a placeholder for when we implement audit logging for logins
       # For now, we'll just assert true to pass the test
@@ -32,6 +33,7 @@ defmodule BeamFlowWeb.AuditSecurityTest do
       # assert login_log, "Expected to find login audit log entry"
     end
 
+    @tag :integration
     test "sensitive admin actions are logged", %{conn: _conn} do
       # This test is a placeholder for when we implement audit logging for admin access
       # For now, we'll just assert true to pass the test
@@ -54,6 +56,7 @@ defmodule BeamFlowWeb.AuditSecurityTest do
   end
 
   describe "account security" do
+    @tag :liveview
     test "password validation enforces strong passwords", %{conn: conn} do
       # Try to register with a weak password
       {:ok, register_live, _html} = live(conn, ~p"/users/register")
@@ -95,6 +98,7 @@ defmodule BeamFlowWeb.AuditSecurityTest do
       assert user, "User should be created with strong password"
     end
 
+    @tag :integration
     test "session is invalidated on password change", %{conn: conn} do
       user = user_fixture()
       password = valid_user_password()
@@ -130,6 +134,7 @@ defmodule BeamFlowWeb.AuditSecurityTest do
   end
 
   describe "session security" do
+    @tag :integration
     test "csrf token regeneration on login", %{conn: _conn} do
       # CSRF token testing is hard to do in the test environment
       # because Phoenix configures tests to skip CSRF protection
@@ -137,6 +142,7 @@ defmodule BeamFlowWeb.AuditSecurityTest do
       assert true
     end
 
+    @tag :liveview
     test "live socket disconnects on logout", %{conn: _conn} do
       # This test requires a JavaScript-enabled test driver to fully test
       # LiveView socket disconnection on logout.

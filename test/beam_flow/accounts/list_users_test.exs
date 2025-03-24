@@ -6,6 +6,7 @@ defmodule BeamFlow.Accounts.ListUsersTest do
   alias BeamFlow.Accounts
 
   describe "list_users/0" do
+    @tag :unit
     test "returns all users" do
       user1 = user_fixture()
       user2 = user_fixture()
@@ -19,6 +20,7 @@ defmodule BeamFlow.Accounts.ListUsersTest do
       assert Enum.any?(users, fn u -> u.id == user3.id end)
     end
 
+    @tag :unit
     test "returns users with all expected fields" do
       user =
         user_fixture(%{
@@ -36,6 +38,7 @@ defmodule BeamFlow.Accounts.ListUsersTest do
   end
 
   describe "list_users_by_role/1" do
+    @tag :unit
     test "returns only users with the specified role" do
       admin = user_fixture(%{role: :admin})
       editor = user_fixture(%{role: :editor})
@@ -60,6 +63,7 @@ defmodule BeamFlow.Accounts.ListUsersTest do
       refute Enum.any?(admin_users, fn u -> u.id == subscriber.id end)
     end
 
+    @tag :unit
     test "returns an empty list for role with no users" do
       # We'll use a valid role but ensure no users have it
       # First, make sure all users have roles other than :author

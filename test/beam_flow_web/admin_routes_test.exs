@@ -14,6 +14,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
   end
 
   describe "admin routes access" do
+    @tag :liveview
     test "allows admin to access admin dashboard", %{conn: conn, admin_user: admin} do
       conn = log_in_user(conn, admin)
 
@@ -21,6 +22,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
       assert html =~ "Admin Dashboard"
     end
 
+    @tag :liveview
     test "allows admin to access user management", %{conn: conn, admin_user: admin} do
       conn = log_in_user(conn, admin)
 
@@ -28,6 +30,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
       assert html =~ "Users"
     end
 
+    @tag :liveview
     test "prevents non-admin from accessing admin routes", %{
       conn: conn,
       editor_user: editor,
@@ -42,6 +45,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
       end
     end
 
+    @tag :liveview
     test "redirects to login for unauthenticated users", %{conn: conn} do
       assert {:error, {:redirect, %{to: path}}} = live(conn, "/admin")
       assert path =~ "/users/log_in"
@@ -52,6 +56,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
   end
 
   describe "editor routes access" do
+    @tag :liveview
     test "allows admin and editor to access editor dashboard", %{
       conn: conn,
       admin_user: admin,
@@ -65,6 +70,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
       end
     end
 
+    @tag :liveview
     test "prevents author and subscriber from accessing editor routes", %{
       conn: conn,
       author_user: author,
@@ -79,6 +85,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
   end
 
   describe "author routes access" do
+    @tag :liveview
     test "allows admin, editor, and author to access author dashboard", %{
       conn: conn,
       admin_user: admin,
@@ -93,6 +100,7 @@ defmodule BeamFlowWeb.AdminRoutesTest do
       end
     end
 
+    @tag :liveview
     test "prevents subscriber from accessing author routes", %{
       conn: conn,
       subscriber_user: subscriber

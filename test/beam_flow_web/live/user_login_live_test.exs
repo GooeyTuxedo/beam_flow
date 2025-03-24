@@ -5,6 +5,7 @@ defmodule BeamFlowWeb.UserLoginLiveTest do
   import BeamFlow.AccountsFixtures
 
   describe "Log in page" do
+    @tag :liveview
     test "renders log in page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/log_in")
 
@@ -13,6 +14,7 @@ defmodule BeamFlowWeb.UserLoginLiveTest do
       assert html =~ "Forgot your password?"
     end
 
+    @tag :liveview
     test "redirects if already logged in", %{conn: conn} do
       result =
         conn
@@ -25,6 +27,7 @@ defmodule BeamFlowWeb.UserLoginLiveTest do
   end
 
   describe "user login" do
+    @tag :liveview
     test "redirects if user login with valid credentials", %{conn: conn} do
       password = "123456789abcd"
       user = user_fixture(%{password: password})
@@ -39,6 +42,7 @@ defmodule BeamFlowWeb.UserLoginLiveTest do
       assert redirected_to(conn) == ~p"/"
     end
 
+    @tag :liveview
     test "redirects to login page with a flash error if there are no valid credentials", %{
       conn: conn
     } do
@@ -58,6 +62,7 @@ defmodule BeamFlowWeb.UserLoginLiveTest do
   end
 
   describe "login navigation" do
+    @tag :liveview
     test "redirects to registration page when the Register button is clicked", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/log_in")
 
@@ -70,6 +75,7 @@ defmodule BeamFlowWeb.UserLoginLiveTest do
       assert login_html =~ "Register"
     end
 
+    @tag :liveview
     test "redirects to forgot password page when the Forgot Password button is clicked", %{
       conn: conn
     } do

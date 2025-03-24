@@ -16,6 +16,7 @@ defmodule BeamFlow.AuthorizationTest do
   end
 
   describe "authorization for posts" do
+    @tag :integration
     test "admin can manage all posts" do
       admin = user_fixture(%{role: :admin})
       resources = create_test_resources(admin.id)
@@ -32,6 +33,7 @@ defmodule BeamFlow.AuthorizationTest do
       assert Auth.can?(admin, :delete, {:post, resources.other_post})
     end
 
+    @tag :integration
     test "editor can manage all posts" do
       editor = user_fixture(%{role: :editor})
       resources = create_test_resources(editor.id)
@@ -48,6 +50,7 @@ defmodule BeamFlow.AuthorizationTest do
       assert Auth.can?(editor, :delete, {:post, resources.other_post})
     end
 
+    @tag :integration
     test "author can only manage own posts" do
       author = user_fixture(%{role: :author})
       resources = create_test_resources(author.id)
@@ -64,6 +67,7 @@ defmodule BeamFlow.AuthorizationTest do
       refute Auth.can?(author, :delete, {:post, resources.other_post})
     end
 
+    @tag :integration
     test "subscriber can only read posts" do
       subscriber = user_fixture(%{role: :subscriber})
       resources = create_test_resources(subscriber.id)
@@ -87,6 +91,7 @@ defmodule BeamFlow.AuthorizationTest do
 
     # skip this admin one
     @tag :skip
+    @tag :integration
     test "admin can manage all comments" do
       admin = user_fixture(%{role: :admin})
       resources = create_test_resources(admin.id)
@@ -105,6 +110,7 @@ defmodule BeamFlow.AuthorizationTest do
 
     # skip this editor one too
     @tag :skip
+    @tag :integration
     test "editor can manage all comments" do
       editor = user_fixture(%{role: :editor})
       resources = create_test_resources(editor.id)
@@ -123,6 +129,7 @@ defmodule BeamFlow.AuthorizationTest do
 
     # skip author one
     @tag :skip
+    @tag :integration
     test "author can manage own comments and read others" do
       author = user_fixture(%{role: :author})
       resources = create_test_resources(author.id)
@@ -141,6 +148,7 @@ defmodule BeamFlow.AuthorizationTest do
 
     # also skip sub test
     @tag :skip
+    @tag :integration
     test "subscriber can manage own comments and read others" do
       subscriber = user_fixture(%{role: :subscriber})
       resources = create_test_resources(subscriber.id)
@@ -159,6 +167,7 @@ defmodule BeamFlow.AuthorizationTest do
   end
 
   describe "authorization with nil user" do
+    @tag :integration
     test "nil user cannot perform any actions" do
       resources = create_test_resources(999)
 
@@ -174,6 +183,7 @@ defmodule BeamFlow.AuthorizationTest do
   end
 
   describe "authorization with the authorize function" do
+    @tag :unit
     test "authorize returns :ok or error tuple" do
       admin = user_fixture(%{role: :admin})
       subscriber = user_fixture(%{role: :subscriber})
@@ -189,6 +199,7 @@ defmodule BeamFlow.AuthorizationTest do
   end
 
   describe "available_actions function" do
+    @tag :unit
     test "returns appropriate actions for each role" do
       admin = user_fixture(%{role: :admin})
       editor = user_fixture(%{role: :editor})

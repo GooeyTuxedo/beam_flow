@@ -18,6 +18,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
   end
 
   describe "basic audit logging" do
+    @tag :unit
     test "logs different action types", %{users: %{admin: user}} do
       # Test login action
       {:ok, login_log} = AuditLog.log_action(Repo, "login", user.id, ip_address: "127.0.0.1")
@@ -54,6 +55,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert meta_log.metadata["status"] == "published"
     end
 
+    @tag :unit
     test "allows logging without a user id" do
       # System actions don't always have a user
       {:ok, log} =
@@ -66,6 +68,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert log.metadata["size"] == "1.2GB"
     end
 
+    @tag :unit
     test "validates required fields" do
       # Action is the only required field
       {:error, changeset} = AuditLog.log_action(Repo, nil, nil)
@@ -78,6 +81,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
   end
 
   describe "query functions" do
+    @tag :unit
     test "list_user_logs returns logs for a specific user", %{
       users: %{admin: user1, editor: user2}
     } do
@@ -106,6 +110,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert Enum.empty?(nonexistent_logs)
     end
 
+    @tag :unit
     test "list_resource_logs returns logs for a specific resource", %{
       users: %{admin: user1, editor: user2}
     } do
@@ -142,6 +147,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert Enum.empty?(nonexistent_logs)
     end
 
+    @tag :unit
     test "list_recent_logs returns recent logs with correct ordering", %{users: %{admin: user}} do
       # Insert logs with explicit timestamps to test ordering
       now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
@@ -182,6 +188,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
   end
 
   describe "integration with Accounts context" do
+    @tag :integration
     test "Accounts.log_action creates audit log entries", %{users: %{subscriber: user}} do
       {:ok, log} = Accounts.log_action("login", user.id, ip_address: "192.168.1.1")
 
@@ -195,6 +202,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert hd(user_logs).action == "login"
     end
 
+    @tag :integration
     test "Accounts.list_user_logs retrieves user logs", %{users: %{author: user}} do
       # Create several logs
       Accounts.log_action("login", user.id)
@@ -211,6 +219,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert length(limited_logs) == 2
     end
 
+    @tag :integration
     test "Accounts.list_resource_logs retrieves resource logs", %{
       users: %{editor: user1, author: user2}
     } do
@@ -234,6 +243,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert user_ids == [user1.id, user2.id] |> Enum.sort()
     end
 
+    @tag :integration
     test "Accounts.list_recent_logs retrieves recent logs", %{users: users} do
       # Create logs from different users
       Accounts.log_action("action1", users.admin.id)
@@ -255,6 +265,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
   end
 
   describe "edge cases" do
+    @tag :unit
     test "handles basic metadata values", %{} do
       user = user_fixture()
 
@@ -277,6 +288,7 @@ defmodule BeamFlow.Accounts.AuditLogTest do
       assert get_in(retrieved_log.metadata, ["key3"]) == true
     end
 
+    @tag :unit
     test "normalizes IP addresses properly", %{users: %{editor: user}} do
       # Test handling of various IP formats
       {:ok, log1} = AuditLog.log_action(Repo, "ip_test_1", user.id, ip_address: "192.168.1.1")

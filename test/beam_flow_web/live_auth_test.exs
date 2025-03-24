@@ -8,6 +8,7 @@ defmodule BeamFlowWeb.LiveAuthTest do
   alias BeamFlowWeb.LiveAuth
 
   describe "on_mount callbacks" do
+    @tag :liveview
     test "ensure_authenticated blocks unauthenticated access", %{conn: _conn} do
       # Create a mock socket
       socket = %Phoenix.LiveView.Socket{
@@ -34,6 +35,7 @@ defmodule BeamFlowWeb.LiveAuthTest do
       assert id == user.id
     end
 
+    @tag :liveview
     test "ensure_role blocks insufficient privileges", %{conn: _conn} do
       # Create a mock socket
       socket = %Phoenix.LiveView.Socket{
@@ -115,6 +117,7 @@ defmodule BeamFlowWeb.LiveAuthTest do
       assert message == "You don't have permission to access this page."
     end
 
+    @tag :liveview
     test "assign_user_roles adds role information to socket", %{conn: _conn} do
       admin = user_fixture(%{role: :admin})
 
@@ -159,6 +162,7 @@ defmodule BeamFlowWeb.LiveAuthTest do
       refute updated_socket.assigns.is_author
     end
 
+    @tag :liveview
     test "redirect_if_authenticated redirects logged in users", %{conn: _conn} do
       # Create a mock socket
       socket = %Phoenix.LiveView.Socket{
@@ -183,6 +187,7 @@ defmodule BeamFlowWeb.LiveAuthTest do
   end
 
   describe "LiveAuth in LiveView controllers" do
+    @tag :liveview
     test "on_mount assigns current user", %{conn: conn} do
       user = user_fixture()
       conn = log_in_user(conn, user)
@@ -195,6 +200,7 @@ defmodule BeamFlowWeb.LiveAuthTest do
       assert html =~ user.email
     end
 
+    @tag :liveview
     test "ensure_authenticated redirects when not logged in", %{conn: conn} do
       # Try to visit a protected LiveView
       assert {:error, {:redirect, %{to: path}}} = live(conn, ~p"/users/settings")

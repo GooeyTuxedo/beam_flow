@@ -8,6 +8,7 @@ defmodule BeamFlowWeb.UserForgotPasswordLiveTest do
   alias BeamFlow.Repo
 
   describe "Forgot password page" do
+    @tag :liveview
     test "renders email page", %{conn: conn} do
       {:ok, lv, html} = live(conn, ~p"/users/reset_password")
 
@@ -16,6 +17,7 @@ defmodule BeamFlowWeb.UserForgotPasswordLiveTest do
       assert has_element?(lv, ~s|a[href="#{~p"/users/log_in"}"]|, "Log in")
     end
 
+    @tag :liveview
     test "redirects if already logged in", %{conn: conn} do
       result =
         conn
@@ -32,6 +34,7 @@ defmodule BeamFlowWeb.UserForgotPasswordLiveTest do
       %{user: user_fixture()}
     end
 
+    @tag :liveview
     test "sends a new reset password token", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset_password")
 
@@ -47,6 +50,7 @@ defmodule BeamFlowWeb.UserForgotPasswordLiveTest do
                "reset_password"
     end
 
+    @tag :liveview
     test "does not send reset password token if email is invalid", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/reset_password")
 

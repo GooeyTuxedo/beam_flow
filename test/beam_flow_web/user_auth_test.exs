@@ -18,6 +18,7 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "log_in_user/3" do
+    @tag :unit
     test "stores the user token in the session", %{conn: conn, user: user} do
       conn = UserAuth.log_in_user(conn, user)
       assert token = get_session(conn, :user_token)
@@ -26,16 +27,19 @@ defmodule BeamFlowWeb.UserAuthTest do
       assert Accounts.get_user_by_session_token(token)
     end
 
+    @tag :unit
     test "clears everything previously stored in the session", %{conn: conn, user: user} do
       conn = conn |> put_session(:to_be_removed, "value") |> UserAuth.log_in_user(user)
       refute get_session(conn, :to_be_removed)
     end
 
+    @tag :unit
     test "redirects to the configured path", %{conn: conn, user: user} do
       conn = conn |> put_session(:user_return_to, "/hello") |> UserAuth.log_in_user(user)
       assert redirected_to(conn) == "/hello"
     end
 
+    @tag :unit
     test "writes a cookie if remember_me is configured", %{conn: conn, user: user} do
       conn = conn |> fetch_cookies() |> UserAuth.log_in_user(user, %{"remember_me" => "true"})
       assert get_session(conn, :user_token) == conn.cookies[@remember_me_cookie]
@@ -47,6 +51,7 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "logout_user/1" do
+    @tag :unit
     test "erases session and cookies", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
 
@@ -64,6 +69,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       refute Accounts.get_user_by_session_token(user_token)
     end
 
+    @tag :unit
     test "broadcasts to the given live_socket_id", %{conn: conn} do
       live_socket_id = "users_sessions:abcdef-token"
       BeamFlowWeb.Endpoint.subscribe(live_socket_id)
@@ -75,6 +81,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       assert_receive %Phoenix.Socket.Broadcast{event: "disconnect", topic: ^live_socket_id}
     end
 
+    @tag :unit
     test "works even if user is already logged out", %{conn: conn} do
       conn = conn |> fetch_cookies() |> UserAuth.log_out_user()
       refute get_session(conn, :user_token)
@@ -84,12 +91,14 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "fetch_current_user/2" do
+    @tag :unit
     test "authenticates user from session", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
       conn = conn |> put_session(:user_token, user_token) |> UserAuth.fetch_current_user([])
       assert conn.assigns.current_user.id == user.id
     end
 
+    @tag :unit
     test "authenticates user from cookies", %{conn: conn, user: user} do
       logged_in_conn =
         conn |> fetch_cookies() |> UserAuth.log_in_user(user, %{"remember_me" => "true"})
@@ -109,6 +118,7 @@ defmodule BeamFlowWeb.UserAuthTest do
                "users_sessions:#{Base.url_encode64(user_token)}"
     end
 
+    @tag :unit
     test "does not authenticate if data is missing", %{conn: conn, user: user} do
       _foo = Accounts.generate_user_session_token(user)
       conn = UserAuth.fetch_current_user(conn, [])
@@ -118,6 +128,7 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "on_mount :mount_current_user" do
+    @tag :unit
     test "assigns current_user based on a valid user_token", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
       session = conn |> put_session(:user_token, user_token) |> get_session()
@@ -128,6 +139,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       assert updated_socket.assigns.current_user.id == user.id
     end
 
+    @tag :unit
     test "assigns nil to current_user assign if there isn't a valid user_token", %{conn: conn} do
       user_token = "invalid_token"
       session = conn |> put_session(:user_token, user_token) |> get_session()
@@ -138,6 +150,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       assert updated_socket.assigns.current_user == nil
     end
 
+    @tag :unit
     test "assigns nil to current_user assign if there isn't a user_token", %{conn: conn} do
       session = conn |> get_session()
 
@@ -149,6 +162,7 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "on_mount :ensure_authenticated" do
+    @tag :unit
     test "authenticates current_user based on a valid user_token", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
       session = conn |> put_session(:user_token, user_token) |> get_session()
@@ -159,6 +173,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       assert updated_socket.assigns.current_user.id == user.id
     end
 
+    @tag :unit
     test "redirects to login page if there isn't a valid user_token", %{conn: conn} do
       user_token = "invalid_token"
       session = conn |> put_session(:user_token, user_token) |> get_session()
@@ -172,6 +187,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       assert updated_socket.assigns.current_user == nil
     end
 
+    @tag :unit
     test "redirects to login page if there isn't a user_token", %{conn: conn} do
       session = conn |> get_session()
 
@@ -186,6 +202,7 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "on_mount :redirect_if_user_is_authenticated" do
+    @tag :unit
     test "redirects if there is an authenticated  user ", %{conn: conn, user: user} do
       user_token = Accounts.generate_user_session_token(user)
       session = conn |> put_session(:user_token, user_token) |> get_session()
@@ -199,6 +216,7 @@ defmodule BeamFlowWeb.UserAuthTest do
                )
     end
 
+    @tag :unit
     test "doesn't redirect if there is no authenticated user", %{conn: conn} do
       session = conn |> get_session()
 
@@ -213,12 +231,14 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "redirect_if_user_is_authenticated/2" do
+    @tag :unit
     test "redirects if user is authenticated", %{conn: conn, user: user} do
       conn = conn |> assign(:current_user, user) |> UserAuth.redirect_if_user_is_authenticated([])
       assert conn.halted
       assert redirected_to(conn) == ~p"/"
     end
 
+    @tag :unit
     test "does not redirect if user is not authenticated", %{conn: conn} do
       conn = UserAuth.redirect_if_user_is_authenticated(conn, [])
       refute conn.halted
@@ -227,6 +247,7 @@ defmodule BeamFlowWeb.UserAuthTest do
   end
 
   describe "require_authenticated_user/2" do
+    @tag :unit
     test "redirects if user is not authenticated", %{conn: conn} do
       conn = conn |> fetch_flash() |> UserAuth.require_authenticated_user([])
       assert conn.halted
@@ -237,6 +258,7 @@ defmodule BeamFlowWeb.UserAuthTest do
                "You must log in to access this page."
     end
 
+    @tag :unit
     test "stores the path to redirect to on GET", %{conn: conn} do
       halted_conn =
         %{conn | path_info: ["foo"], query_string: ""}
@@ -263,6 +285,7 @@ defmodule BeamFlowWeb.UserAuthTest do
       refute get_session(halted_conn, :user_return_to)
     end
 
+    @tag :unit
     test "does not redirect if user is authenticated", %{conn: conn, user: user} do
       conn = conn |> assign(:current_user, user) |> UserAuth.require_authenticated_user([])
       refute conn.halted

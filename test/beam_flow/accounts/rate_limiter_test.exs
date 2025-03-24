@@ -19,6 +19,7 @@ defmodule BeamFlow.Accounts.RateLimiterTest do
   end
 
   describe "basic rate limiting" do
+    @tag :unit
     test "records and clears attempts" do
       key = "test-key-#{:rand.uniform(1000)}"
 
@@ -36,6 +37,7 @@ defmodule BeamFlow.Accounts.RateLimiterTest do
   end
 
   describe "custom configuration" do
+    @tag :unit
     test "works with different configurations" do
       key = "test-key-#{:rand.uniform(1000)}"
 
@@ -56,6 +58,7 @@ defmodule BeamFlow.Accounts.RateLimiterTest do
   end
 
   # Simple test to ensure record_attempt functions
+  @tag :unit
   test "record_attempt increments attempts" do
     key = "test-key-#{:rand.uniform(1000)}"
 
@@ -65,6 +68,7 @@ defmodule BeamFlow.Accounts.RateLimiterTest do
   end
 
   # Test cleanup functionality
+  @tag :unit
   test "handles empty and non-existent keys gracefully" do
     # Non-existent key should not be rate limited
     refute RateLimiter.check_rate_limit("nonexistent-#{:rand.uniform(1000)}")

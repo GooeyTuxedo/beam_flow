@@ -46,11 +46,13 @@ defmodule BeamFlow.RolesTest do
   end
 
   describe "has_role?/2" do
+    @tag :unit
     test "returns false for nil user" do
       refute TestRoles.has_role?(nil, :admin)
       refute TestRoles.has_role?(nil, :subscriber)
     end
 
+    @tag :unit
     test "admin has all roles" do
       admin = %TestUser{id: 1, role: :admin}
 
@@ -60,6 +62,7 @@ defmodule BeamFlow.RolesTest do
       assert TestRoles.has_role?(admin, :subscriber)
     end
 
+    @tag :unit
     test "editor has editor and lower roles" do
       editor = %TestUser{id: 2, role: :editor}
 
@@ -69,6 +72,7 @@ defmodule BeamFlow.RolesTest do
       assert TestRoles.has_role?(editor, :subscriber)
     end
 
+    @tag :unit
     test "author has author and lower roles" do
       author = %TestUser{id: 3, role: :author}
 
@@ -78,6 +82,7 @@ defmodule BeamFlow.RolesTest do
       assert TestRoles.has_role?(author, :subscriber)
     end
 
+    @tag :unit
     test "subscriber has only subscriber role" do
       subscriber = %TestUser{id: 4, role: :subscriber}
 
@@ -87,6 +92,7 @@ defmodule BeamFlow.RolesTest do
       assert TestRoles.has_role?(subscriber, :subscriber)
     end
 
+    @tag :unit
     test "handles unknown roles gracefully" do
       user = %TestUser{id: 5, role: :unknown_role}
 
@@ -100,10 +106,12 @@ defmodule BeamFlow.RolesTest do
   end
 
   describe "get_user_roles/1" do
+    @tag :unit
     test "returns empty list for nil user" do
       assert TestRoles.get_user_roles(nil) == []
     end
 
+    @tag :unit
     test "returns all roles for admin" do
       admin = %TestUser{id: 1, role: :admin}
       roles = TestRoles.get_user_roles(admin)
@@ -115,6 +123,7 @@ defmodule BeamFlow.RolesTest do
       assert length(roles) == 4
     end
 
+    @tag :unit
     test "returns correct roles for editor" do
       editor = %TestUser{id: 2, role: :editor}
       roles = TestRoles.get_user_roles(editor)
@@ -126,6 +135,7 @@ defmodule BeamFlow.RolesTest do
       assert length(roles) == 3
     end
 
+    @tag :unit
     test "returns correct roles for author" do
       author = %TestUser{id: 3, role: :author}
       roles = TestRoles.get_user_roles(author)
@@ -137,6 +147,7 @@ defmodule BeamFlow.RolesTest do
       assert length(roles) == 2
     end
 
+    @tag :unit
     test "returns only subscriber role for subscriber" do
       subscriber = %TestUser{id: 4, role: :subscriber}
       roles = TestRoles.get_user_roles(subscriber)
@@ -148,6 +159,7 @@ defmodule BeamFlow.RolesTest do
       assert length(roles) == 1
     end
 
+    @tag :unit
     test "returns empty list for unknown role" do
       user = %TestUser{id: 5, role: :unknown_role}
       assert TestRoles.get_user_roles(user) == []
@@ -155,6 +167,7 @@ defmodule BeamFlow.RolesTest do
   end
 
   describe "all_roles/0" do
+    @tag :unit
     test "returns all roles in descending privilege order" do
       roles = TestRoles.all_roles()
 
@@ -163,6 +176,7 @@ defmodule BeamFlow.RolesTest do
   end
 
   describe "role_hierarchy/0" do
+    @tag :unit
     test "returns the role hierarchy map" do
       hierarchy = TestRoles.role_hierarchy()
 

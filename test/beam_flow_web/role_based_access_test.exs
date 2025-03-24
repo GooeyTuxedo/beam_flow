@@ -16,6 +16,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
   end
 
   describe "role-based dashboard access" do
+    @tag :liveview
     test "admin can access all dashboards", %{conn: conn, admin: admin} do
       conn = log_in_user(conn, admin)
 
@@ -32,6 +33,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
       assert html =~ "Author Dashboard"
     end
 
+    @tag :liveview
     test "editor can access editor and author dashboards", %{conn: conn, editor: editor} do
       conn = log_in_user(conn, editor)
 
@@ -47,6 +49,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
       assert html =~ "Author Dashboard"
     end
 
+    @tag :liveview
     test "author can only access author dashboard", %{conn: conn, author: author} do
       conn = log_in_user(conn, author)
 
@@ -61,6 +64,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
       assert html =~ "Author Dashboard"
     end
 
+    @tag :liveview
     test "subscriber cannot access any dashboard", %{conn: conn, subscriber: subscriber} do
       conn = log_in_user(conn, subscriber)
 
@@ -74,6 +78,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
       assert {:error, {:redirect, %{to: "/"}}} = live(conn, ~p"/author")
     end
 
+    @tag :liveview
     test "guest cannot access any dashboard", %{conn: conn} do
       # Guest should not access admin dashboard
       assert {:error, {:redirect, %{to: path}}} = live(conn, ~p"/admin")
@@ -90,6 +95,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
   end
 
   describe "admin features access" do
+    @tag :liveview
     test "only admin can access user management", %{conn: conn, admin: admin, editor: editor} do
       # Admin can access
       admin_conn = log_in_user(conn, admin)
@@ -101,6 +107,7 @@ defmodule BeamFlowWeb.RoleBasedAccessTest do
       assert {:error, {:redirect, %{to: "/"}}} = live(editor_conn, ~p"/admin/users")
     end
 
+    @tag :liveview
     test "role changes affect permissions immediately", %{conn: conn} do
       # Create a user with author role
       author = user_fixture(%{role: :author})

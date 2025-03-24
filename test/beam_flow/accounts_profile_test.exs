@@ -7,6 +7,7 @@ defmodule BeamFlow.AccountsProfileTest do
   alias BeamFlow.Accounts.User
 
   describe "user profile management" do
+    @tag :unit
     test "update profile information" do
       user = user_fixture()
 
@@ -25,6 +26,7 @@ defmodule BeamFlow.AccountsProfileTest do
       assert updated_user.email == user.email
     end
 
+    @tag :unit
     test "validates profile information" do
       user = user_fixture()
 
@@ -48,6 +50,7 @@ defmodule BeamFlow.AccountsProfileTest do
   end
 
   describe "user role management" do
+    @tag :unit
     test "update user role" do
       user = user_fixture(%{role: :subscriber})
 
@@ -58,6 +61,7 @@ defmodule BeamFlow.AccountsProfileTest do
       assert updated_user.role == :author
     end
 
+    @tag :unit
     test "validates role values" do
       user = user_fixture()
 
@@ -67,6 +71,7 @@ defmodule BeamFlow.AccountsProfileTest do
       assert "is invalid" in errors_on(changeset).role
     end
 
+    @tag :integration
     test "role changes affect permissions immediately" do
       user = user_fixture(%{role: :subscriber})
 
@@ -88,6 +93,7 @@ defmodule BeamFlow.AccountsProfileTest do
   end
 
   describe "list_users functions" do
+    @tag :unit
     test "list_users returns all users" do
       # Create several users with different roles
       admin = user_fixture(%{role: :admin})
@@ -105,6 +111,7 @@ defmodule BeamFlow.AccountsProfileTest do
       assert subscriber.id in user_ids
     end
 
+    @tag :unit
     test "list_users_by_role filters users correctly" do
       # Create several users with different roles
       user_fixture(%{role: :admin, email: "admin1@example.com"})

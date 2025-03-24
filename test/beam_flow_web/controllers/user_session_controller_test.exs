@@ -8,6 +8,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
   end
 
   describe "POST /users/log_in" do
+    @tag :unit
     test "logs the user in", %{conn: conn, user: user} do
       conn =
         post(conn, ~p"/users/log_in", %{
@@ -25,6 +26,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
       assert response =~ ~p"/users/log_out"
     end
 
+    @tag :unit
     test "logs the user in with remember me", %{conn: conn, user: user} do
       conn =
         post(conn, ~p"/users/log_in", %{
@@ -39,6 +41,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
       assert redirected_to(conn) == ~p"/"
     end
 
+    @tag :unit
     test "logs the user in with return to", %{conn: conn, user: user} do
       conn =
         conn
@@ -54,6 +57,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Welcome back!"
     end
 
+    @tag :unit
     test "login following registration", %{conn: conn, user: user} do
       conn =
         conn
@@ -69,6 +73,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Account created successfully"
     end
 
+    @tag :unit
     test "login following password update", %{conn: conn, user: user} do
       conn =
         conn
@@ -84,6 +89,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Password updated successfully"
     end
 
+    @tag :unit
     test "redirects to login page with invalid credentials", %{conn: conn} do
       conn =
         post(conn, ~p"/users/log_in", %{
@@ -96,6 +102,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
   end
 
   describe "DELETE /users/log_out" do
+    @tag :unit
     test "logs the user out", %{conn: conn, user: user} do
       conn = conn |> log_in_user(user) |> delete(~p"/users/log_out")
       assert redirected_to(conn) == ~p"/"
@@ -103,6 +110,7 @@ defmodule BeamFlowWeb.UserSessionControllerTest do
       assert Phoenix.Flash.get(conn.assigns.flash, :info) =~ "Logged out successfully"
     end
 
+    @tag :unit
     test "succeeds even if the user is not logged in", %{conn: conn} do
       conn = delete(conn, ~p"/users/log_out")
       assert redirected_to(conn) == ~p"/"

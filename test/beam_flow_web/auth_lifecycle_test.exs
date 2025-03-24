@@ -7,6 +7,7 @@ defmodule BeamFlowWeb.AuthLifecycleTest do
   alias BeamFlow.Accounts
 
   describe "complete authentication lifecycle" do
+    @tag :liveview
     test "user can register, log in, and log out", %{conn: conn} do
       email = unique_user_email()
       password = valid_user_password()
@@ -70,6 +71,7 @@ defmodule BeamFlowWeb.AuthLifecycleTest do
   end
 
   describe "password reset flow" do
+    @tag :liveview
     test "user can request and complete password reset", %{conn: conn} do
       # Create a user
       user = user_fixture()
@@ -109,6 +111,7 @@ defmodule BeamFlowWeb.AuthLifecycleTest do
   end
 
   describe "remember me functionality" do
+    @tag :liveview
     test "remember me sets long expiry cookie", %{conn: conn} do
       user = user_fixture()
 
@@ -133,6 +136,7 @@ defmodule BeamFlowWeb.AuthLifecycleTest do
     # This is a placeholder test since rate limiting implementation
     # is not fully integrated yet
 
+    @tag :liveview
     test "login failure shows error message", %{conn: conn} do
       user = user_fixture()
 

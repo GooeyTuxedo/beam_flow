@@ -12,11 +12,13 @@ defmodule BeamFlowWeb.UserConfirmationLiveTest do
   end
 
   describe "Confirm user" do
+    @tag :liveview
     test "renders confirmation page", %{conn: conn} do
       {:ok, _lv, html} = live(conn, ~p"/users/confirm/some-token")
       assert html =~ "Confirm Account"
     end
 
+    @tag :liveview
     test "confirms the given token once", %{conn: conn, user: user} do
       token =
         extract_user_token(fn url ->
@@ -71,6 +73,7 @@ defmodule BeamFlowWeb.UserConfirmationLiveTest do
       refute Phoenix.Flash.get(conn.assigns.flash, :error)
     end
 
+    @tag :liveview
     test "does not confirm email with invalid token", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/confirm/invalid-token")
 

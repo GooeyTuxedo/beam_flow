@@ -7,6 +7,7 @@ defmodule BeamFlowWeb.DashboardLiveTest do
   describe "Admin Dashboard" do
     setup [:create_user_and_log_in_as_admin]
 
+    @tag :liveview
     test "renders dashboard elements", %{conn: conn} do
       {:ok, view, html} = live(conn, "/admin")
 
@@ -29,6 +30,7 @@ defmodule BeamFlowWeb.DashboardLiveTest do
   describe "Editor Dashboard" do
     setup [:create_user_and_log_in_as_editor]
 
+    @tag :liveview
     test "renders dashboard elements", %{conn: conn} do
       {:ok, view, html} = live(conn, "/editor")
 
@@ -46,6 +48,7 @@ defmodule BeamFlowWeb.DashboardLiveTest do
   describe "Author Dashboard" do
     setup [:create_user_and_log_in_as_author]
 
+    @tag :liveview
     test "renders dashboard elements", %{conn: conn} do
       {:ok, view, html} = live(conn, "/author")
 

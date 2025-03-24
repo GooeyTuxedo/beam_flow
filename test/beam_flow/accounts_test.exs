@@ -9,17 +9,20 @@ defmodule BeamFlow.AccountsTest do
   import BeamFlow.AccountsFixtures
 
   describe "get_user_by_email/1" do
+    @tag :unit
     test "returns the user if the email exists" do
       %{id: id} = user = user_fixture()
       assert %User{id: ^id} = Accounts.get_user_by_email(user.email)
     end
 
+    @tag :unit
     test "returns nil if the email does not exist" do
       assert nil == Accounts.get_user_by_email("unknown@example.com")
     end
   end
 
   describe "get_user_by_email_and_password/2" do
+    @tag :unit
     test "returns the user if the email and password are valid" do
       %{id: id} = user = user_fixture()
 
@@ -27,16 +30,18 @@ defmodule BeamFlow.AccountsTest do
                Accounts.get_user_by_email_and_password(user.email, valid_user_password())
     end
 
+    @tag :unit
     test "returns nil if the email does not exist" do
       assert nil == Accounts.get_user_by_email_and_password("unknown@example.com", "hello world!")
     end
 
+    @tag :unit
     test "returns nil if the password is not valid" do
       user = user_fixture()
       assert nil == Accounts.get_user_by_email_and_password(user.email, "invalid")
     end
 
-    # CITEXT makes email case-insensitive, so we should modify this test
+    @tag :unit
     test "handles email case sensitivity according to DB configuration" do
       email = unique_user_email()
       _user = user_fixture(email: email)
@@ -56,6 +61,7 @@ defmodule BeamFlow.AccountsTest do
   end
 
   describe "user registration" do
+    @tag :unit
     test "requires email and password to be set" do
       {:error, changeset} = Accounts.register_user(%{})
 
@@ -66,6 +72,7 @@ defmodule BeamFlow.AccountsTest do
              } = errors_on(changeset)
     end
 
+    @tag :unit
     test "validates email and password when given" do
       {:error, changeset} =
         Accounts.register_user(%{email: "not valid", password: "short", name: "test"})
@@ -75,6 +82,7 @@ defmodule BeamFlow.AccountsTest do
       assert errors_on(changeset).password
     end
 
+    @tag :unit
     test "validates maximum values for email and password for security" do
       too_long = String.duplicate("db", 100)
 
@@ -85,6 +93,7 @@ defmodule BeamFlow.AccountsTest do
       assert "should be at most 72 character(s)" in errors_on(changeset).password
     end
 
+    @tag :unit
     test "validates email uniqueness" do
       %{email: email} = user_fixture()
 
@@ -98,6 +107,7 @@ defmodule BeamFlow.AccountsTest do
       assert "has already been taken" in errors_on(changeset).email
     end
 
+    @tag :unit
     test "registers users with a hashed password" do
       email = unique_user_email()
       name = valid_user_name()
@@ -113,11 +123,13 @@ defmodule BeamFlow.AccountsTest do
   end
 
   describe "change_user_registration/2" do
+    @tag :unit
     test "returns a changeset" do
       assert %Ecto.Changeset{} = changeset = Accounts.change_user_registration(%User{})
       assert Enum.sort(changeset.required) == Enum.sort([:password, :email, :name])
     end
 
+    @tag :unit
     test "allows fields to be set" do
       email = unique_user_email()
       password = valid_user_password()
@@ -137,6 +149,7 @@ defmodule BeamFlow.AccountsTest do
   end
 
   describe "user roles and authorization" do
+    @tag :unit
     test "has_role? correctly checks role hierarchy" do
       admin = user_fixture(%{role: :admin})
       editor = user_fixture(%{role: :editor})
@@ -168,6 +181,7 @@ defmodule BeamFlow.AccountsTest do
       assert Auth.has_role?(subscriber, :subscriber)
     end
 
+    @tag :integration
     test "can? correctly implements permission logic" do
       admin = user_fixture(%{role: :admin})
       editor = user_fixture(%{role: :editor})
@@ -206,6 +220,7 @@ defmodule BeamFlow.AccountsTest do
   end
 
   describe "audit logging" do
+    @tag :unit
     test "log_action creates an audit log entry" do
       user = user_fixture()
 
@@ -224,6 +239,7 @@ defmodule BeamFlow.AccountsTest do
       assert log.metadata == %{"success" => true}
     end
 
+    @tag :unit
     test "list_user_logs returns logs for a specific user" do
       user1 = user_fixture()
       user2 = user_fixture()
@@ -244,6 +260,7 @@ defmodule BeamFlow.AccountsTest do
       %{user: user_fixture()}
     end
 
+    @tag :unit
     test "generates a token", %{user: user} do
       token = Accounts.generate_user_session_token(user)
       assert user_token = Repo.get_by(UserToken, token: token)
@@ -257,6 +274,7 @@ defmodule BeamFlow.AccountsTest do
       %{user: user_fixture()}
     end
 
+    @tag :unit
     test "generates a token with extended validity when remember_me is true", %{user: user} do
       {_token, user_token} = UserToken.build_session_token(user, true)
       assert user_token.context == "session"
@@ -275,17 +293,20 @@ defmodule BeamFlow.AccountsTest do
       %{user: user, token: token}
     end
 
+    @tag :unit
     test "returns user by token", %{user: user, token: token} do
       assert session_user = Accounts.get_user_by_session_token(token)
       assert session_user.id == user.id
     end
 
+    @tag :unit
     test "returns nil for invalid token" do
       assert nil == Accounts.get_user_by_session_token("invalid")
     end
   end
 
   describe "delete_user_session_token/1" do
+    @tag :unit
     test "deletes the token" do
       user = user_fixture()
       token = Accounts.generate_user_session_token(user)

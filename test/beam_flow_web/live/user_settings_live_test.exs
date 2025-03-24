@@ -6,6 +6,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
   import BeamFlow.AccountsFixtures
 
   describe "Settings page" do
+    @tag :liveview
     test "renders settings page", %{conn: conn} do
       {:ok, _lv, html} =
         conn
@@ -16,6 +17,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert html =~ "Change Password"
     end
 
+    @tag :liveview
     test "redirects if user is not logged in", %{conn: conn} do
       assert {:error, redirect} = live(conn, ~p"/users/settings")
 
@@ -32,6 +34,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       %{conn: log_in_user(conn, user), user: user, password: password}
     end
 
+    @tag :liveview
     test "updates the user email", %{conn: conn, password: password, user: user} do
       new_email = unique_user_email()
 
@@ -52,6 +55,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert Accounts.get_user_by_email(user.email)
     end
 
+    @tag :liveview
     test "renders errors with invalid data (phx-change)", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
@@ -66,6 +70,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert result =~ "must have the @ sign and no spaces"
     end
 
+    @tag :liveview
     test "renders errors with invalid data (phx-submit)", %{conn: conn, user: user} do
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
@@ -93,6 +98,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       %{conn: log_in_user(conn, user), user: user, password: password}
     end
 
+    @tag :liveview
     test "updates the user password", %{conn: conn, user: user, password: password} do
       new_password = valid_user_password()
 
@@ -122,6 +128,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert Accounts.get_user_by_email_and_password(user.email, new_password)
     end
 
+    @tag :liveview
     test "renders errors with invalid data (phx-change)", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
@@ -140,6 +147,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert result =~ "should be at least 12 character"
     end
 
+    @tag :liveview
     test "renders errors with invalid data (phx-submit)", %{conn: conn} do
       {:ok, lv, _html} = live(conn, ~p"/users/settings")
 
@@ -190,6 +198,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       }
     end
 
+    @tag :liveview
     test "updates the user email once", %{conn: conn, user: user, token: token, email: email} do
       # The test will now redirect with info flash instead of error
       # This is because we properly set up a user with the new email
@@ -215,6 +224,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert message == "Email change link is invalid or it has expired."
     end
 
+    @tag :liveview
     test "does not update email with invalid token", %{conn: conn, user: user} do
       {:error, redirect} = live(conn, ~p"/users/settings/confirm_email/oops")
       assert {:live_redirect, %{to: path, flash: flash}} = redirect
@@ -224,6 +234,7 @@ defmodule BeamFlowWeb.UserSettingsLiveTest do
       assert Accounts.get_user_by_email(user.email)
     end
 
+    @tag :liveview
     test "redirects if user is not logged in", %{token: token} do
       conn = build_conn()
       {:error, redirect} = live(conn, ~p"/users/settings/confirm_email/#{token}")
