@@ -3,3 +3,82 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+
+/* Markdown preview styles */
+.prose {
+  @apply text-gray-800;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  @apply font-bold text-gray-900 mb-4 mt-6;
+}
+
+.prose h1 {
+  @apply text-3xl;
+}
+
+.prose h2 {
+  @apply text-2xl;
+}
+
+.prose h3 {
+  @apply text-xl;
+}
+
+.prose p {
+  @apply mb-4;
+}
+
+.prose a {
+  @apply text-blue-600 hover:text-blue-800 underline;
+}
+
+.prose ul {
+  @apply list-disc pl-5 mb-4;
+}
+
+.prose ol {
+  @apply list-decimal pl-5 mb-4;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-gray-300 pl-4 italic;
+}
+
+.prose pre {
+  @apply bg-gray-100 p-4 rounded-md overflow-auto my-4;
+}
+
+.prose code {
+  @apply bg-gray-100 px-1 py-0.5 rounded text-sm;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0;
+}
+
+.prose img {
+  @apply max-w-full h-auto my-4;
+}
+
+.prose hr {
+  @apply my-8 border-t border-gray-300;
+}
+
+.prose table {
+  @apply w-full border-collapse my-4;
+}
+
+.prose table th,
+.prose table td {
+  @apply border border-gray-300 p-2;
+}
+
+.prose table th {
+  @apply bg-gray-100;
+}

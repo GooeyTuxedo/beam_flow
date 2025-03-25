@@ -79,7 +79,9 @@ defmodule BeamFlow.MixProject do
       {:opentelemetry_exporter, "~> 1.4"},
       {:opentelemetry_phoenix, "~> 1.1"},
       {:opentelemetry_ecto, "~> 1.1"},
-      {:opentelemetry_semantic_conventions, "~> 0.2"}
+      {:opentelemetry_semantic_conventions, "~> 0.2"},
+      {:earmark, "~> 1.4"},
+      {:html_sanitize_ex, "~> 1.4"}
     ]
   end
 

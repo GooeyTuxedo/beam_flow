@@ -22,6 +22,21 @@ import { Socket } from "phoenix";
 import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
 
+import MarkdownEditorHooks from "./hooks/markdown_editor_hooks";
+
+const PostFormHook = {
+  mounted() {
+    window.addEventListener("editor-content-changed", (e) => {
+      this.pushEvent("autosave", { content: e.detail.content });
+    });
+  },
+};
+
+let Hooks = {
+  ...MarkdownEditorHooks,
+  PostFormHook,
+};
+
 let csrfToken = document
   .querySelector("meta[name='csrf-token']")
   .getAttribute("content");
@@ -43,3 +58,5 @@ liveSocket.connect();
 // >> liveSocket.enableLatencySim(1000)  // enabled for duration of browser session
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket;
+
+export default Hooks;

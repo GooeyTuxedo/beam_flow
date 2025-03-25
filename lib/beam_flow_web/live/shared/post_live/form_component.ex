@@ -2,11 +2,12 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
   use BeamFlowWeb, :live_component
 
   alias BeamFlow.Content
+  alias BeamFlowWeb.Components.MarkdownEditorComponent
 
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-3xl mx-auto" id="post-form-container" phx-hook="PostFormHook">
       <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id={"#{@id}-title"}>
         {@title}
       </h3>
@@ -43,15 +44,16 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
           </div>
 
           <div class="sm:col-span-6">
-            <.input
-              field={@form[:content]}
-              type="textarea"
-              label="Content"
-              rows={12}
-              placeholder="Write your post content in Markdown format"
+            <label class="block text-sm font-semibold leading-6 text-zinc-800">Content</label>
+            <.live_component
+              module={MarkdownEditorComponent}
+              id={"editor-#{@id}"}
+              field_name={@form[:content].name}
+              value={@form[:content].value}
+              autosaved={@autosaved}
             />
             <p class="mt-1 text-sm text-gray-500">
-              Write your post content using Markdown. A rich editor will be available in future updates.
+              Write your post content using Markdown.
             </p>
           </div>
 
@@ -92,10 +94,24 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
   def update(%{post: post} = assigns, socket) do
     changeset = Content.change_post(post)
 
-    {:ok,
-     socket
-     |> assign(assigns)
-     |> assign_form(changeset)}
+    socket =
+      socket
+      |> assign(assigns)
+      |> assign(:autosaved, nil)
+      |> assign_form(changeset)
+
+    {:ok, socket}
+  end
+
+  @impl true
+  def handle_event("autosave", %{"content" => content}, socket) do
+    current_changeset = socket.assigns.form.source
+    updated_changeset = Ecto.Changeset.put_change(current_changeset, :content, content)
+
+    socket_with_form = assign_form(socket, updated_changeset)
+    socket_with_autosave = assign(socket_with_form, :autosaved, DateTime.utc_now())
+
+    {:noreply, socket_with_autosave}
   end
 
   @impl true
@@ -153,6 +169,7 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
         {:noreply,
          socket
          |> put_flash(:info, "Post updated successfully")
+         |> push_event("changes-saved", %{})
          |> push_patch(to: socket.assigns.return_to)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -166,6 +183,7 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
         {:noreply,
          socket
          |> put_flash(:info, "Post created successfully")
+         |> push_event("changes-saved", %{})
          |> push_patch(to: socket.assigns.return_to)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
