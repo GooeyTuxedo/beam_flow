@@ -127,9 +127,15 @@ defmodule BeamFlowWeb.Router do
       live "/posts/:id/edit", PostLive.Index, :edit
       live "/posts/:id", PostLive.Show, :show
 
+      live "/categories", CategoryLive.Index, :index
+      live "/categories/new", CategoryLive.Index, :new
+      live "/categories/:id/edit", CategoryLive.Index, :edit
+
+      live "/tags", TagLive.Index, :index
+      live "/tags/new", TagLive.Index, :new
+      live "/tags/:id/edit", TagLive.Index, :edit
+
       # These routes will be implemented later as we build features
-      # live "/categories", CategoryLive.Index, :index
-      # live "/tags", TagLive.Index, :index
       # live "/media", MediaLive.Index, :index
       # live "/comments", CommentLive.Index, :index
       # live "/settings", SettingsLive, :index
@@ -154,6 +160,14 @@ defmodule BeamFlowWeb.Router do
       live "/posts/:id/edit", PostLive.Index, :edit
       live "/posts/:id", PostLive.Show, :show
 
+      live "/categories", CategoryLive.Index, :index
+      live "/categories/new", CategoryLive.Index, :new
+      live "/categories/:id/edit", CategoryLive.Index, :edit
+
+      live "/tags", TagLive.Index, :index
+      live "/tags/new", TagLive.Index, :new
+      live "/tags/:id/edit", TagLive.Index, :edit
+
       # Future routes for comments and media
       # live "/comments", CommentLive.Index, :index
       # live "/media", MediaLive.Index, :index
@@ -177,6 +191,9 @@ defmodule BeamFlowWeb.Router do
       live "/posts/new", PostLive.Index, :new
       live "/posts/:id/edit", PostLive.Index, :edit
       live "/posts/:id", PostLive.Show, :show
+
+      live "/tags", TagLive.Index, :index
+      live "/tags/new", TagLive.Index, :new
     end
   end
 

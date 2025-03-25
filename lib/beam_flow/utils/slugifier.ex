@@ -19,12 +19,25 @@ defmodule BeamFlow.Utils.Slugifier do
 
   @doc """
   Ensures a slug is unique by appending a counter if necessary.
-  Takes a function that checks if the slug exists.
+  Takes a function that checks if the slug exists and the changeset.
   """
-  def ensure_unique_slug(slug, existing_slug_fn, counter \\ 2) do
-    if existing_slug_fn.(slug) do
+  def ensure_unique_slug(slug, exists_fn, changeset, counter \\ 2)
+
+  # When a changeset is provided
+  def ensure_unique_slug(slug, exists_fn, changeset, counter) when is_map(changeset) do
+    if exists_fn.(slug, changeset) do
       new_slug = "#{slug}-#{counter}"
-      ensure_unique_slug(new_slug, existing_slug_fn, counter + 1)
+      ensure_unique_slug(new_slug, exists_fn, changeset, counter + 1)
+    else
+      slug
+    end
+  end
+
+  # Legacy support for single-argument exists functions
+  def ensure_unique_slug(slug, exists_fn, nil, counter) do
+    if exists_fn.(slug) do
+      new_slug = "#{slug}-#{counter}"
+      ensure_unique_slug(new_slug, exists_fn, nil, counter + 1)
     else
       slug
     end

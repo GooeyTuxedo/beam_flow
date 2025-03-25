@@ -8,6 +8,9 @@ defmodule BeamFlow.Content.Post do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias BeamFlow.Content.Category
+  alias BeamFlow.Content.Tag
+
   @status_values ~w(draft published scheduled)
 
   schema "posts" do
@@ -19,6 +22,8 @@ defmodule BeamFlow.Content.Post do
     field :published_at, :utc_datetime
 
     belongs_to :user, BeamFlow.Accounts.User
+    many_to_many :categories, Category, join_through: "post_categories", on_replace: :delete
+    many_to_many :tags, Tag, join_through: "post_tags", on_replace: :delete
 
     timestamps()
   end
@@ -34,6 +39,8 @@ defmodule BeamFlow.Content.Post do
     |> validate_published_status()
     |> validate_slug()
     |> unique_constraint(:slug)
+    |> put_assoc(:categories, parse_categories(attrs))
+    |> put_assoc(:tags, parse_tags(attrs))
   end
 
   @doc """
@@ -97,4 +104,42 @@ defmodule BeamFlow.Content.Post do
     # Trim hyphens from start and end
     |> String.trim("-")
   end
+
+  # Parse categories for associations
+  defp parse_categories(%{"category_ids" => category_ids}) when is_list(category_ids) do
+    category_ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&BeamFlow.Content.get_category!/1)
+  rescue
+    _err -> []
+  end
+
+  defp parse_categories(%{category_ids: category_ids}) when is_list(category_ids) do
+    category_ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&BeamFlow.Content.get_category!/1)
+  rescue
+    _err -> []
+  end
+
+  defp parse_categories(_params), do: []
+
+  # Parse tags for associations
+  defp parse_tags(%{"tag_ids" => tag_ids}) when is_list(tag_ids) do
+    tag_ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&BeamFlow.Content.get_tag!/1)
+  rescue
+    _err -> []
+  end
+
+  defp parse_tags(%{tag_ids: tag_ids}) when is_list(tag_ids) do
+    tag_ids
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&BeamFlow.Content.get_tag!/1)
+  rescue
+    _err -> []
+  end
+
+  defp parse_tags(_params), do: []
 end

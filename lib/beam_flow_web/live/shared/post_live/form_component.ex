@@ -42,6 +42,47 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
               Brief summary of the post, used in listings and SEO.
             </p>
           </div>
+          
+    <!-- Categories & Tags Selection -->
+          <div class="sm:col-span-3">
+            <label class="block text-sm font-semibold leading-6 text-zinc-800 mb-1">Categories</label>
+            <div class="bg-white border rounded-md p-2 max-h-60 overflow-y-auto">
+              <%= for category <- @categories do %>
+                <div class="flex items-center mb-1">
+                  <input
+                    type="checkbox"
+                    id={"category-#{category.id}"}
+                    checked={category.id in @selected_category_ids}
+                    phx-click="select-category"
+                    phx-value-id={category.id}
+                    phx-target={@myself}
+                    class="mr-2"
+                  />
+                  <label for={"category-#{category.id}"} class="text-sm">{category.name}</label>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+          <div class="sm:col-span-3">
+            <label class="block text-sm font-semibold leading-6 text-zinc-800 mb-1">Tags</label>
+            <div class="bg-white border rounded-md p-2 max-h-60 overflow-y-auto">
+              <%= for tag <- @tags do %>
+                <div class="flex items-center mb-1">
+                  <input
+                    type="checkbox"
+                    id={"tag-#{tag.id}"}
+                    checked={tag.id in @selected_tag_ids}
+                    phx-click="select-tag"
+                    phx-value-id={tag.id}
+                    phx-target={@myself}
+                    class="mr-2"
+                  />
+                  <label for={"tag-#{tag.id}"} class="text-sm">{tag.name}</label>
+                </div>
+              <% end %>
+            </div>
+          </div>
 
           <div class="sm:col-span-6">
             <label class="block text-sm font-semibold leading-6 text-zinc-800">Content</label>
@@ -94,13 +135,50 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
   def update(%{post: post} = assigns, socket) do
     changeset = Content.change_post(post)
 
+    # Get preloaded categories and tags or empty lists if not loaded
+    categories = Content.list_categories()
+    tags = Content.list_tags()
+
+    # Safely extract category and tag IDs
+    selected_category_ids = extract_association_ids(post, :categories)
+    selected_tag_ids = extract_association_ids(post, :tags)
+
     socket =
       socket
       |> assign(assigns)
       |> assign(:autosaved, nil)
+      |> assign(:categories, categories)
+      |> assign(:tags, tags)
+      |> assign(:selected_category_ids, selected_category_ids)
+      |> assign(:selected_tag_ids, selected_tag_ids)
       |> assign_form(changeset)
 
     {:ok, socket}
+  end
+
+  # Helper to safely extract IDs from associations that might not be loaded
+  defp extract_association_ids(struct, association_name) do
+    case Map.get(struct, association_name) do
+      %Ecto.Association.NotLoaded{} -> []
+      nil -> []
+      list when is_list(list) -> Enum.map(list, & &1.id)
+    end
+  end
+
+  @impl true
+  def handle_event("select-category", %{"id" => id}, socket) do
+    category_id = String.to_integer(id)
+    selected_ids = toggle_selection(socket.assigns.selected_category_ids, category_id)
+
+    {:noreply, assign(socket, :selected_category_ids, selected_ids)}
+  end
+
+  @impl true
+  def handle_event("select-tag", %{"id" => id}, socket) do
+    tag_id = String.to_integer(id)
+    selected_ids = toggle_selection(socket.assigns.selected_tag_ids, tag_id)
+
+    {:noreply, assign(socket, :selected_tag_ids, selected_ids)}
   end
 
   @impl true
@@ -159,6 +237,12 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
       else
         post_params
       end
+
+    # Add category and tag IDs to params
+    post_params =
+      post_params
+      |> Map.put("category_ids", socket.assigns.selected_category_ids)
+      |> Map.put("tag_ids", socket.assigns.selected_tag_ids)
 
     save_post(socket, socket.assigns.action, post_params)
   end
@@ -230,5 +314,13 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
 
   defp assign_form(socket, %Ecto.Changeset{} = changeset) do
     assign(socket, :form, to_form(changeset))
+  end
+
+  defp toggle_selection(selected_ids, id) do
+    if id in selected_ids do
+      List.delete(selected_ids, id)
+    else
+      [id | selected_ids]
+    end
   end
 end

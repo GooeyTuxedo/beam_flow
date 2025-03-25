@@ -10,10 +10,16 @@ defmodule BeamFlow.Content do
   require BeamFlow.Tracer
   require OpenTelemetry.Tracer
 
+  alias BeamFlow.Content.Category
   alias BeamFlow.Content.Post
+  alias BeamFlow.Content.Tag
   alias BeamFlow.Repo
   alias BeamFlow.Tracer
   alias BeamFlow.Utils.Slugifier
+
+  #
+  # Post operations
+  #
 
   @doc """
   Returns a list of posts.
@@ -28,7 +34,7 @@ defmodule BeamFlow.Content do
     Tracer.with_span "content.list_posts" do
       Post
       |> Repo.all()
-      |> Repo.preload(:user)
+      |> Repo.preload([:user, :categories, :tags])
     end
   end
 
@@ -82,7 +88,7 @@ defmodule BeamFlow.Content do
       results =
         query
         |> Repo.all()
-        |> Repo.preload(:user)
+        |> Repo.preload([:user, :categories, :tags])
 
       Tracer.set_attributes(%{result_count: length(results)})
       results
@@ -107,7 +113,7 @@ defmodule BeamFlow.Content do
     Tracer.with_span "content.get_post", %{post_id: id} do
       Post
       |> Repo.get!(id)
-      |> Repo.preload(:user)
+      |> Repo.preload([:user, :categories, :tags])
     end
   rescue
     e in Ecto.NoResultsError ->
@@ -135,7 +141,7 @@ defmodule BeamFlow.Content do
       result =
         Post
         |> Repo.get_by(slug: slug)
-        |> Repo.preload(:user)
+        |> Repo.preload([:user, :categories, :tags])
 
       if result do
         Tracer.add_event("post.found", %{id: result.id})
@@ -179,7 +185,7 @@ defmodule BeamFlow.Content do
       |> case do
         {:ok, post} ->
           Tracer.add_event("post.created", %{id: post.id, slug: post.slug})
-          {:ok, Repo.preload(post, :user)}
+          {:ok, Repo.preload(post, [:user, :categories, :tags])}
 
         {:error, changeset} ->
           Tracer.add_event("post.validation_failed", %{
@@ -218,7 +224,7 @@ defmodule BeamFlow.Content do
       |> case do
         {:ok, updated_post} ->
           Tracer.add_event("post.updated", %{slug: updated_post.slug})
-          {:ok, Repo.preload(updated_post, :user)}
+          {:ok, Repo.preload(updated_post, [:user, :categories, :tags])}
 
         {:error, changeset} ->
           Tracer.add_event("post.update_failed", %{
@@ -301,15 +307,403 @@ defmodule BeamFlow.Content do
     end
   end
 
-  # Ensures a slug is unique by appending a counter if necessary.
+  #
+  # Category operations
+  #
+
+  @doc """
+  Returns a list of categories.
+
+  ## Examples
+
+      iex> list_categories()
+      [%Category{}, ...]
+
+  """
+  def list_categories(opts \\ []) do
+    Tracer.with_span "content.list_categories" do
+      order_by = Keyword.get(opts, :order_by, asc: :name)
+
+      Category
+      |> order_by(^order_by)
+      |> Repo.all()
+    end
+  end
+
+  @doc """
+  Gets a single category by ID.
+
+  Raises `Ecto.NoResultsError` if the Category does not exist.
+
+  ## Examples
+
+      iex> get_category!(123)
+      %Category{}
+
+      iex> get_category!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_category!(id) do
+    Tracer.with_span "content.get_category", %{category_id: id} do
+      Category
+      |> Repo.get!(id)
+    end
+  rescue
+    e in Ecto.NoResultsError ->
+      Tracer.set_error("Category not found")
+      Tracer.record_exception(e, __STACKTRACE__)
+      reraise e, __STACKTRACE__
+  end
+
+  @doc """
+  Gets a single category by slug.
+
+  Returns nil if the Category does not exist.
+
+  ## Examples
+
+      iex> get_category_by_slug("technology")
+      %Category{}
+
+      iex> get_category_by_slug("nonexistent")
+      nil
+
+  """
+  def get_category_by_slug(slug) do
+    Tracer.with_span "content.get_category_by_slug", %{slug: slug} do
+      result = Category |> Repo.get_by(slug: slug)
+
+      if result do
+        Tracer.add_event("category.found", %{id: result.id})
+      else
+        Tracer.add_event("category.not_found", %{})
+      end
+
+      result
+    end
+  end
+
+  @doc """
+  Creates a category.
+
+  ## Examples
+
+      iex> create_category(%{field: value})
+      {:ok, %Category{}}
+
+      iex> create_category(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_category(attrs \\ %{}) do
+    Tracer.with_span "content.create_category" do
+      name = Map.get(attrs, "name", Map.get(attrs, :name, "unknown"))
+      current_user = Map.get(attrs, :current_user)
+
+      Tracer.set_attributes(%{name: name})
+
+      %Category{}
+      |> Category.changeset(attrs)
+      |> ensure_unique_category_slug()
+      |> Repo.insert()
+      |> tap(fn
+        {:ok, category} ->
+          Tracer.add_event("category.created", %{id: category.id, slug: category.slug})
+          BeamFlow.Logger.audit("category.created", current_user, %{category_id: category.id})
+
+        {:error, changeset} ->
+          Tracer.add_event("category.validation_failed", %{errors: inspect(changeset.errors)})
+          Tracer.set_error("Validation failed")
+      end)
+    end
+  end
+
+  @doc """
+  Updates a category.
+
+  ## Examples
+
+      iex> update_category(category, %{field: new_value})
+      {:ok, %Category{}}
+
+      iex> update_category(category, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_category(%Category{} = category, attrs) do
+    Tracer.with_span "content.update_category", %{category_id: category.id} do
+      current_user = Map.get(attrs, :current_user)
+
+      Tracer.add_event("category.update_started", %{
+        name: Map.get(attrs, "name", Map.get(attrs, :name, category.name))
+      })
+
+      category
+      |> Category.changeset(attrs)
+      |> ensure_unique_category_slug()
+      |> Repo.update()
+      |> tap(fn
+        {:ok, updated_category} ->
+          Tracer.add_event("category.updated", %{slug: updated_category.slug})
+          BeamFlow.Logger.audit("category.updated", current_user, %{category_id: category.id})
+
+        {:error, changeset} ->
+          Tracer.add_event("category.update_failed", %{errors: inspect(changeset.errors)})
+          Tracer.set_error("Update validation failed")
+      end)
+    end
+  end
+
+  @doc """
+  Deletes a category.
+
+  ## Examples
+
+      iex> delete_category(category)
+      {:ok, %Category{}}
+
+      iex> delete_category(category)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_category(%Category{} = category) do
+    Tracer.with_span "content.delete_category", %{category_id: category.id, name: category.name} do
+      result = Repo.delete(category)
+
+      tap(result, fn
+        {:ok, _changeset} ->
+          Tracer.add_event("category.deleted", %{})
+          BeamFlow.Logger.audit("category.deleted", nil, %{category_id: category.id})
+
+        {:error, changeset} ->
+          Tracer.add_event("category.delete_failed", %{errors: inspect(changeset.errors)})
+          Tracer.set_error("Delete failed")
+      end)
+    end
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking category changes.
+
+  ## Examples
+
+      iex> change_category(category)
+      %Ecto.Changeset{data: %Category{}}
+
+  """
+  def change_category(%Category{} = category, attrs \\ %{}) do
+    Category.changeset(category, attrs)
+  end
+
+  def list_posts_by_category(%Category{} = category) do
+    Tracer.with_span "content.list_posts_by_category", %{category_id: category.id} do
+      category = Repo.preload(category, :posts)
+      category.posts
+    end
+  end
+
+  #
+  # Tag operations
+  #
+
+  @doc """
+  Returns a list of tags.
+
+  ## Examples
+
+      iex> list_tags()
+      [%Tag{}, ...]
+
+  """
+  def list_tags(opts \\ []) do
+    Tracer.with_span "content.list_tags" do
+      order_by = Keyword.get(opts, :order_by, asc: :name)
+
+      Tag
+      |> order_by(^order_by)
+      |> Repo.all()
+    end
+  end
+
+  @doc """
+  Gets a single tag by ID.
+
+  Raises `Ecto.NoResultsError` if the Tag does not exist.
+
+  ## Examples
+
+      iex> get_tag!(123)
+      %Tag{}
+
+      iex> get_tag!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_tag!(id) do
+    Tracer.with_span "content.get_tag", %{tag_id: id} do
+      Tag
+      |> Repo.get!(id)
+    end
+  rescue
+    e in Ecto.NoResultsError ->
+      Tracer.set_error("Tag not found")
+      Tracer.record_exception(e, __STACKTRACE__)
+      reraise e, __STACKTRACE__
+  end
+
+  @doc """
+  Gets a single tag by slug.
+
+  Returns nil if the Tag does not exist.
+
+  ## Examples
+
+      iex> get_tag_by_slug("elixir")
+      %Tag{}
+
+      iex> get_tag_by_slug("nonexistent")
+      nil
+
+  """
+  def get_tag_by_slug(slug) do
+    Tracer.with_span "content.get_tag_by_slug", %{slug: slug} do
+      result = Tag |> Repo.get_by(slug: slug)
+
+      if result do
+        Tracer.add_event("tag.found", %{id: result.id})
+      else
+        Tracer.add_event("tag.not_found", %{})
+      end
+
+      result
+    end
+  end
+
+  @doc """
+  Creates a tag.
+
+  ## Examples
+
+      iex> create_tag(%{field: value})
+      {:ok, %Tag{}}
+
+      iex> create_tag(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_tag(attrs \\ %{}) do
+    Tracer.with_span "content.create_tag" do
+      name = Map.get(attrs, "name", Map.get(attrs, :name, "unknown"))
+      current_user = Map.get(attrs, :current_user)
+
+      Tracer.set_attributes(%{name: name})
+
+      %Tag{}
+      |> Tag.changeset(attrs)
+      |> ensure_unique_tag_slug()
+      |> Repo.insert()
+      |> tap(fn
+        {:ok, tag} ->
+          Tracer.add_event("tag.created", %{id: tag.id, slug: tag.slug})
+          BeamFlow.Logger.audit("tag.created", current_user, %{tag_id: tag.id})
+
+        {:error, changeset} ->
+          Tracer.add_event("tag.validation_failed", %{errors: inspect(changeset.errors)})
+          Tracer.set_error("Validation failed")
+      end)
+    end
+  end
+
+  @doc """
+  Updates a tag.
+
+  ## Examples
+
+      iex> update_tag(tag, %{field: new_value})
+      {:ok, %Tag{}}
+
+      iex> update_tag(tag, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_tag(%Tag{} = tag, attrs) do
+    Tracer.with_span "content.update_tag", %{tag_id: tag.id} do
+      current_user = Map.get(attrs, :current_user)
+
+      Tracer.add_event("tag.update_started", %{
+        name: Map.get(attrs, "name", Map.get(attrs, :name, tag.name))
+      })
+
+      tag
+      |> Tag.changeset(attrs)
+      |> ensure_unique_tag_slug()
+      |> Repo.update()
+      |> tap(fn
+        {:ok, updated_tag} ->
+          Tracer.add_event("tag.updated", %{slug: updated_tag.slug})
+          BeamFlow.Logger.audit("tag.updated", current_user, %{tag_id: tag.id})
+
+        {:error, changeset} ->
+          Tracer.add_event("tag.update_failed", %{errors: inspect(changeset.errors)})
+          Tracer.set_error("Update validation failed")
+      end)
+    end
+  end
+
+  @doc """
+  Deletes a tag.
+
+  ## Examples
+
+      iex> delete_tag(tag)
+      {:ok, %Tag{}}
+
+      iex> delete_tag(tag)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_tag(%Tag{} = tag) do
+    Tracer.with_span "content.delete_tag", %{tag_id: tag.id, name: tag.name} do
+      result = Repo.delete(tag)
+
+      tap(result, fn
+        {:ok, _changeset} ->
+          Tracer.add_event("tag.deleted", %{})
+          BeamFlow.Logger.audit("tag.deleted", nil, %{tag_id: tag.id})
+
+        {:error, changeset} ->
+          Tracer.add_event("tag.delete_failed", %{errors: inspect(changeset.errors)})
+          Tracer.set_error("Delete failed")
+      end)
+    end
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking tag changes.
+
+  ## Examples
+
+      iex> change_tag(tag)
+      %Ecto.Changeset{data: %Tag{}}
+
+  """
+  def change_tag(%Tag{} = tag, attrs \\ %{}) do
+    Tag.changeset(tag, attrs)
+  end
+
+  #
+  # Helper functions
+  #
+
+  # Ensures a slug is unique by appending a counter if necessary for posts
   defp ensure_unique_slug(changeset) do
     case get_field(changeset, :slug) do
       nil ->
         changeset
 
       slug ->
-        # Generate a unique slug
-        unique_slug = Slugifier.ensure_unique_slug(slug, &slug_exists?(&1, changeset))
+        unique_slug = Slugifier.ensure_unique_slug(slug, &slug_exists?/2, changeset)
 
         if slug != unique_slug do
           Tracer.add_event("slug.modified", %{
@@ -324,18 +718,83 @@ defmodule BeamFlow.Content do
     end
   end
 
-  # Check if a slug exists, excluding the current entity if it exists
+  # Ensures a slug is unique for categories
+  defp ensure_unique_category_slug(changeset) do
+    case get_field(changeset, :slug) do
+      nil ->
+        changeset
+
+      slug ->
+        unique_slug = Slugifier.ensure_unique_slug(slug, &category_slug_exists?/2, changeset)
+
+        if slug != unique_slug do
+          Tracer.add_event("category_slug.modified", %{
+            original: slug,
+            modified: unique_slug
+          })
+
+          put_change(changeset, :slug, unique_slug)
+        else
+          changeset
+        end
+    end
+  end
+
+  # Ensures a slug is unique for tags
+  defp ensure_unique_tag_slug(changeset) do
+    case get_field(changeset, :slug) do
+      nil ->
+        changeset
+
+      slug ->
+        unique_slug = Slugifier.ensure_unique_slug(slug, &tag_slug_exists?/2, changeset)
+
+        if slug != unique_slug do
+          Tracer.add_event("tag_slug.modified", %{
+            original: slug,
+            modified: unique_slug
+          })
+
+          put_change(changeset, :slug, unique_slug)
+        else
+          changeset
+        end
+    end
+  end
+
+  def list_posts_by_tag(%Tag{} = tag) do
+    Tracer.with_span "content.list_posts_by_tag", %{tag_id: tag.id} do
+      tag = Repo.preload(tag, :posts)
+      tag.posts
+    end
+  end
+
+  # Check if a post slug exists, excluding the current entity if it exists
   defp slug_exists?(test_slug, changeset) do
     query = from p in Post, where: p.slug == ^test_slug
-    query = exclude_current_post(query, changeset)
+    query = exclude_current_entity(query, changeset)
     Repo.exists?(query)
   end
 
-  # Exclude the current post when checking uniqueness during updates
-  defp exclude_current_post(query, changeset) do
+  # Check if a category slug exists, excluding the current entity if it exists
+  defp category_slug_exists?(test_slug, changeset) do
+    query = from c in Category, where: c.slug == ^test_slug
+    query = exclude_current_entity(query, changeset)
+    Repo.exists?(query)
+  end
+
+  # Check if a tag slug exists, excluding the current entity if it exists
+  defp tag_slug_exists?(test_slug, changeset) do
+    query = from t in Tag, where: t.slug == ^test_slug
+    query = exclude_current_entity(query, changeset)
+    Repo.exists?(query)
+  end
+
+  # Exclude the current entity when checking uniqueness during updates
+  defp exclude_current_entity(query, changeset) do
     case get_field(changeset, :id) do
       nil -> query
-      id -> from p in query, where: p.id != ^id
+      id -> from q in query, where: q.id != ^id
     end
   end
 end
