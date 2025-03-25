@@ -61,4 +61,16 @@ defmodule BeamFlowWeb.ConnCase do
     |> Phoenix.ConnTest.init_test_session(%{})
     |> Plug.Conn.put_session(:user_token, token)
   end
+
+  def create_test_user(role) do
+    {:ok, user} =
+      BeamFlow.Accounts.register_user(%{
+        email: "#{role}_#{:rand.uniform(1000)}@example.com",
+        password: "Password123!@#",
+        name: "Test #{String.capitalize(role)}",
+        role: String.to_existing_atom(role)
+      })
+
+    user
+  end
 end
