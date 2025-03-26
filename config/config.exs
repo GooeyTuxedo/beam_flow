@@ -69,6 +69,20 @@ config :opentelemetry,
     }
   }
 
+# Configure media storage path
+config :beam_flow, :media_storage_dir, "priv/static/uploads"
+
+config :beam_flow, :media,
+  # 10MB
+  max_file_size: 10_485_760,
+  allowed_types: [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/svg+xml",
+    "application/pdf"
+  ]
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

@@ -11,6 +11,8 @@ defmodule BeamFlow.Content do
   require OpenTelemetry.Tracer
 
   alias BeamFlow.Content.Category
+  alias BeamFlow.Content.Media
+  alias BeamFlow.Content.MediaStorage
   alias BeamFlow.Content.Post
   alias BeamFlow.Content.Tag
   alias BeamFlow.Repo
@@ -34,7 +36,7 @@ defmodule BeamFlow.Content do
     Tracer.with_span "content.list_posts" do
       Post
       |> Repo.all()
-      |> Repo.preload([:user, :categories, :tags])
+      |> Repo.preload([:user, :categories, :tags, :featured_image])
     end
   end
 
@@ -88,7 +90,7 @@ defmodule BeamFlow.Content do
       results =
         query
         |> Repo.all()
-        |> Repo.preload([:user, :categories, :tags])
+        |> Repo.preload([:user, :categories, :tags, :featured_image])
 
       Tracer.set_attributes(%{result_count: length(results)})
       results
@@ -113,7 +115,7 @@ defmodule BeamFlow.Content do
     Tracer.with_span "content.get_post", %{post_id: id} do
       Post
       |> Repo.get!(id)
-      |> Repo.preload([:user, :categories, :tags])
+      |> Repo.preload([:user, :categories, :tags, :featured_image])
     end
   rescue
     e in Ecto.NoResultsError ->
@@ -141,7 +143,7 @@ defmodule BeamFlow.Content do
       result =
         Post
         |> Repo.get_by(slug: slug)
-        |> Repo.preload([:user, :categories, :tags])
+        |> Repo.preload([:user, :categories, :tags, :featured_image])
 
       if result do
         Tracer.add_event("post.found", %{id: result.id})
@@ -185,7 +187,7 @@ defmodule BeamFlow.Content do
       |> case do
         {:ok, post} ->
           Tracer.add_event("post.created", %{id: post.id, slug: post.slug})
-          {:ok, Repo.preload(post, [:user, :categories, :tags])}
+          {:ok, Repo.preload(post, [:user, :categories, :tags, :featured_image])}
 
         {:error, changeset} ->
           Tracer.add_event("post.validation_failed", %{
@@ -224,7 +226,7 @@ defmodule BeamFlow.Content do
       |> case do
         {:ok, updated_post} ->
           Tracer.add_event("post.updated", %{slug: updated_post.slug})
-          {:ok, Repo.preload(updated_post, [:user, :categories, :tags])}
+          {:ok, Repo.preload(updated_post, [:user, :categories, :tags, :featured_image])}
 
         {:error, changeset} ->
           Tracer.add_event("post.update_failed", %{
@@ -690,6 +692,268 @@ defmodule BeamFlow.Content do
   """
   def change_tag(%Tag{} = tag, attrs \\ %{}) do
     Tag.changeset(tag, attrs)
+  end
+
+  #
+  # Media operations
+  #
+
+  @doc """
+  Returns a list of media items.
+
+  ## Examples
+
+      iex> list_media()
+      [%Media{}, ...]
+
+  """
+  def list_media(criteria \\ []) do
+    Tracer.with_span "content.list_media", %{
+      criteria_count: length(criteria)
+    } do
+      query = from(m in Media)
+
+      query =
+        Enum.reduce(criteria, query, fn
+          {:user_id, user_id}, query ->
+            Tracer.add_event("filter.user_id", %{user_id: user_id})
+            from q in query, where: q.user_id == ^user_id
+
+          {:content_type, content_type}, query ->
+            Tracer.add_event("filter.content_type", %{type: content_type})
+            from q in query, where: q.content_type == ^content_type
+
+          {:search, search_term}, query ->
+            Tracer.add_event("filter.search", %{term: search_term})
+            search_term = "%#{search_term}%"
+
+            from q in query,
+              where:
+                ilike(q.filename, ^search_term) or
+                  ilike(q.original_filename, ^search_term) or
+                  ilike(q.alt_text, ^search_term)
+
+          {:order_by, {field, direction}}, query ->
+            Tracer.add_event("filter.order_by", %{field: field, direction: direction})
+            from q in query, order_by: [{^direction, ^field}]
+
+          {:limit, limit}, query ->
+            Tracer.add_event("filter.limit", %{limit: limit})
+            from q in query, limit: ^limit
+
+          _query, query ->
+            query
+        end)
+
+      results =
+        query
+        |> Repo.all()
+        |> Repo.preload(:user)
+
+      Tracer.set_attributes(%{result_count: length(results)})
+      results
+    end
+  end
+
+  @doc """
+  Gets a single media item by ID.
+
+  Raises `Ecto.NoResultsError` if the Media does not exist.
+
+  ## Examples
+
+      iex> get_media!(123)
+      %Media{}
+
+      iex> get_media!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_media!(id) do
+    Tracer.with_span "content.get_media", %{media_id: id} do
+      Media
+      |> Repo.get!(id)
+      |> Repo.preload(:user)
+    end
+  rescue
+    e in Ecto.NoResultsError ->
+      Tracer.set_error("Media not found")
+      Tracer.record_exception(e, __STACKTRACE__)
+      reraise e, __STACKTRACE__
+  end
+
+  @doc """
+  Creates a media item from an uploaded file.
+
+  ## Examples
+
+      iex> create_media_from_upload(upload, %{user_id: 1})
+      {:ok, %Media{}}
+
+      iex> create_media_from_upload(upload, %{})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_media_from_upload(upload, attrs \\ %{}) do
+    Tracer.with_span "content.create_media_from_upload" do
+      user_id = Map.get(attrs, "user_id", Map.get(attrs, :user_id))
+
+      Tracer.set_attributes(%{
+        filename: upload.client_name,
+        content_type: upload.content_type,
+        size: upload.size,
+        user_id: user_id
+      })
+
+      if Media.content_type_allowed?(upload.content_type) do
+        with {:ok, path} <- MediaStorage.store_file(upload, upload.client_name) do
+          media_params = %{
+            filename: Path.basename(path),
+            original_filename: upload.client_name,
+            content_type: upload.content_type,
+            path: path,
+            size: upload.size,
+            alt_text: Map.get(attrs, "alt_text", Map.get(attrs, :alt_text, "")),
+            user_id: user_id
+          }
+
+          %Media{}
+          |> Media.changeset(media_params)
+          |> Repo.insert()
+          |> case do
+            {:ok, media} ->
+              Tracer.add_event("media.created", %{id: media.id, path: media.path})
+
+              # Log the audit event with the current user
+              current_user = Map.get(attrs, :current_user)
+
+              BeamFlow.Logger.audit(
+                "media.created",
+                current_user,
+                %{media_id: media.id, filename: media.original_filename}
+              )
+
+              {:ok, Repo.preload(media, :user)}
+
+            {:error, changeset} ->
+              # If insertion fails, clean up the uploaded file
+              MediaStorage.delete_file(path)
+
+              Tracer.add_event("media.validation_failed", %{
+                errors: inspect(changeset.errors)
+              })
+
+              Tracer.set_error("Validation failed")
+              {:error, changeset}
+          end
+        else
+          {:error, reason} ->
+            {:error, reason}
+        end
+      else
+        Tracer.add_event("media.invalid_content_type", %{type: upload.content_type})
+        {:error, :content_type_not_allowed}
+      end
+    end
+  end
+
+  @doc """
+  Updates a media item.
+
+  ## Examples
+
+      iex> update_media(media, %{field: new_value})
+      {:ok, %Media{}}
+
+      iex> update_media(media, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_media(%Media{} = media, attrs) do
+    Tracer.with_span "content.update_media", %{media_id: media.id} do
+      current_user = Map.get(attrs, :current_user)
+
+      media
+      |> Media.changeset(attrs)
+      |> Repo.update()
+      |> tap(fn
+        {:ok, updated_media} ->
+          Tracer.add_event("media.updated", %{id: updated_media.id})
+
+          BeamFlow.Logger.audit(
+            "media.updated",
+            current_user,
+            %{media_id: media.id, filename: media.original_filename}
+          )
+
+          {:ok, Repo.preload(updated_media, :user)}
+
+        {:error, changeset} ->
+          Tracer.add_event("media.update_failed", %{
+            errors: inspect(changeset.errors)
+          })
+
+          Tracer.set_error("Update validation failed")
+          {:error, changeset}
+      end)
+    end
+  end
+
+  @doc """
+  Deletes a media item and its associated file.
+
+  ## Examples
+
+      iex> delete_media(media)
+      {:ok, %Media{}}
+
+      iex> delete_media(media)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_media(%Media{} = media, current_user \\ nil) do
+    Tracer.with_span "content.delete_media", %{
+      media_id: media.id,
+      filename: media.original_filename
+    } do
+      # First, delete the file from storage
+      delete_result = MediaStorage.delete_file(media.path)
+
+      # Then, delete the database record
+      case Repo.delete(media) do
+        {:ok, deleted_media} ->
+          Tracer.add_event("media.deleted", %{delete_result: delete_result})
+
+          BeamFlow.Logger.audit(
+            "media.deleted",
+            current_user,
+            %{media_id: media.id, filename: media.original_filename}
+          )
+
+          {:ok, deleted_media}
+
+        {:error, changeset} ->
+          Tracer.add_event("media.delete_failed", %{
+            errors: inspect(changeset.errors)
+          })
+
+          Tracer.set_error("Delete failed")
+          {:error, changeset}
+      end
+    end
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking media changes.
+
+  ## Examples
+
+      iex> change_media(media)
+      %Ecto.Changeset{data: %Media{}}
+
+  """
+  def change_media(%Media{} = media, attrs \\ %{}) do
+    Media.changeset(media, attrs)
   end
 
   #

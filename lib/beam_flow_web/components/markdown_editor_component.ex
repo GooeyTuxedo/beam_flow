@@ -50,8 +50,7 @@ defmodule BeamFlowWeb.Components.MarkdownEditorComponent do
             </.button>
             <.button
               type="button"
-              phx-click="markdown-format"
-              phx-value-format="image"
+              phx-click="open-media-selector"
               phx-target={@myself}
               class="bg-transparent p-1 hover:bg-gray-200 text-gray-700"
             >
@@ -82,7 +81,6 @@ defmodule BeamFlowWeb.Components.MarkdownEditorComponent do
             value={@value}
             type="textarea"
             rows="10"
-            phx-hook="MarkdownInput"
             phx-target={@myself}
             phx-debounce="300"
             placeholder="Write your content in Markdown format..."
@@ -111,6 +109,23 @@ defmodule BeamFlowWeb.Components.MarkdownEditorComponent do
           </div>
         </div>
       </div>
+
+      <.modal
+        :if={@show_media_selector}
+        id={"media-selector-modal-#{@id}"}
+        show
+        on_cancel={JS.push("close-media-selector", target: @myself)}
+      >
+        <div class="w-full max-w-4xl mx-auto">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">Insert Media</h3>
+          <.live_component
+            module={BeamFlowWeb.Components.MarkdownMediaSelector}
+            id={"markdown-media-selector-#{@id}"}
+            current_user={@current_user}
+            target_component={@myself}
+          />
+        </div>
+      </.modal>
     </div>
     """
   end
@@ -122,6 +137,8 @@ defmodule BeamFlowWeb.Components.MarkdownEditorComponent do
       |> assign(assigns)
       |> assign_new(:autosaved, fn -> nil end)
       |> assign_new(:show_preview, fn -> true end)
+      |> assign_new(:show_media_selector, fn -> false end)
+      |> assign_new(:current_user, fn -> assigns[:current_user] end)
       |> assign_html_preview()
 
     {:ok, socket}
@@ -140,17 +157,43 @@ defmodule BeamFlowWeb.Components.MarkdownEditorComponent do
       |> assign_html_preview()
       |> assign(:autosaved, DateTime.utc_now())
 
-    send_update_to_parent = %{
-      id: socket.assigns.id,
-      content: value
-    }
-
-    {:noreply, push_event(socket, "editor-content-changed", send_update_to_parent)}
+    {:noreply,
+     push_event(socket, "editor-content-changed", %{id: socket.assigns.id, content: value})}
   end
 
   @impl true
   def handle_event("markdown-format", %{"format" => format}, socket) do
     {:noreply, push_event(socket, "markdown-format", %{format: format})}
+  end
+
+  @impl true
+  def handle_event("open-media-selector", _params, socket) do
+    {:noreply, assign(socket, :show_media_selector, true)}
+  end
+
+  @impl true
+  def handle_event("close-media-selector", _params, socket) do
+    {:noreply, assign(socket, :show_media_selector, false)}
+  end
+
+  @impl true
+  def handle_event("media-selected", %{"id" => media_id}, socket) do
+    # Get the media details
+    media = BeamFlow.Content.get_media!(media_id)
+
+    # Send event to the JS hook
+    socket =
+      socket
+      |> assign(:show_media_selector, false)
+      |> push_event("media-selected-for-editor", %{
+        id: media.id,
+        path: media.path,
+        content_type: media.content_type,
+        original_filename: media.original_filename,
+        alt_text: media.alt_text || media.original_filename
+      })
+
+    {:noreply, socket}
   end
 
   defp assign_html_preview(socket) do

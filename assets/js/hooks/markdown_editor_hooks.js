@@ -110,6 +110,37 @@ const MarkdownEditorHooks = {
       // Trigger input event to update preview
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     },
+
+    insertMediaToEditor(media) {
+      const textarea = this.editor;
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      const text = textarea.value;
+
+      let insertion = "";
+
+      // Check if it's an image
+      if (media.content_type && media.content_type.startsWith("image/")) {
+        insertion = `![${media.alt_text || media.original_filename}](${media.path})`;
+      } else {
+        insertion = `[${media.original_filename}](${media.path})`;
+      }
+
+      // Insert at cursor position
+      const newText =
+        text.substring(0, startPos) + insertion + text.substring(endPos);
+      textarea.value = newText;
+
+      // Trigger input event to update preview
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+      // Set cursor position after insertion
+      textarea.focus();
+      textarea.setSelectionRange(
+        startPos + insertion.length,
+        startPos + insertion.length,
+      );
+    },
   },
 };
 

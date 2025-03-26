@@ -60,10 +60,15 @@ config :beam_flow, BeamFlowWeb.Endpoint,
       ~r"priv/gettext/.*(po)$",
       ~r"lib/beam_flow_web/(controllers|live|components)/.*(ex|heex)$"
     ]
+  ],
+  static_options: [
+    cache_control_for_etags: "public, max-age=0"
   ]
 
 # Enable dev routes for dashboard and mailbox
 config :beam_flow, dev_routes: true
+
+config :beam_flow, :async_logging, true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :console,
@@ -75,8 +80,6 @@ config :opentelemetry, :processors,
   otel_batch_processor: %{
     exporter: {:opentelemetry_exporter, %{endpoint: "http://localhost:4318/v1/traces"}}
   }
-
-config :beam_flow, :async_logging, true
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.

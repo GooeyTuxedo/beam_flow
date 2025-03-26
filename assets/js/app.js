@@ -23,6 +23,7 @@ import { LiveSocket } from "phoenix_live_view";
 import topbar from "../vendor/topbar";
 
 import MarkdownEditorHooks from "./hooks/markdown_editor_hooks";
+import MediaUploaderHooks from "./hooks/media_uploader_hooks";
 
 const PostFormHook = {
   mounted() {
@@ -34,6 +35,7 @@ const PostFormHook = {
 
 let Hooks = {
   ...MarkdownEditorHooks,
+  ...MediaUploaderHooks,
   PostFormHook,
 };
 

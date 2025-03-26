@@ -7,6 +7,8 @@ import Config
 # before starting your production server.
 config :beam_flow, BeamFlowWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
 
+config :beam_flow, :async_logging, true
+
 # Configures Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: BeamFlow.Finch
 
@@ -34,8 +36,6 @@ config :opentelemetry, :processors,
       }
     }
   }
-
-config :beam_flow, :async_logging, true
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

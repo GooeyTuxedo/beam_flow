@@ -3,6 +3,7 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
 
   alias BeamFlow.Content
   alias BeamFlowWeb.Components.MarkdownEditorComponent
+  alias BeamFlowWeb.Components.MediaSelectorComponent
 
   @impl true
   def render(assigns) do
@@ -41,6 +42,16 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
             <p class="mt-1 text-sm text-gray-500">
               Brief summary of the post, used in listings and SEO.
             </p>
+          </div>
+
+          <div class="sm:col-span-6">
+            <.live_component
+              module={MediaSelectorComponent}
+              id={"media-selector-#{@id}"}
+              current_user={@current_user}
+              selected_media_id={@featured_image_id}
+              show_selector={false}
+            />
           </div>
           
     <!-- Categories & Tags Selection -->
@@ -92,6 +103,7 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
               field_name={@form[:content].name}
               value={@form[:content].value}
               autosaved={@autosaved}
+              current_user={@current_user}
             />
             <p class="mt-1 text-sm text-gray-500">
               Write your post content using Markdown.
@@ -134,15 +146,13 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
   @impl true
   def update(%{post: post} = assigns, socket) do
     changeset = Content.change_post(post)
-
-    # Get preloaded categories and tags or empty lists if not loaded
     categories = Content.list_categories()
     tags = Content.list_tags()
-
-    # Safely extract category and tag IDs
     selected_category_ids = extract_association_ids(post, :categories)
     selected_tag_ids = extract_association_ids(post, :tags)
+    featured_image_id = post.featured_image_id
 
+    # Assign all standard values
     socket =
       socket
       |> assign(assigns)
@@ -151,9 +161,30 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
       |> assign(:tags, tags)
       |> assign(:selected_category_ids, selected_category_ids)
       |> assign(:selected_tag_ids, selected_tag_ids)
+      |> assign(:featured_image_id, featured_image_id)
       |> assign_form(changeset)
+      |> maybe_attach_media_hooks()
 
     {:ok, socket}
+  end
+
+  defp maybe_attach_media_hooks(socket) do
+    return_socket = socket
+
+    if connected?(socket) do
+      attach_hook(socket, :media_selection, :handle_event, &handle_media_event/3)
+    else
+      return_socket
+    end
+  end
+
+  defp handle_media_event("featured-image-changed", %{"id" => media_id}, socket) do
+    media_id = if media_id == nil, do: nil, else: String.to_integer(media_id)
+    {:halt, assign(socket, :featured_image_id, media_id)}
+  end
+
+  defp handle_media_event(_event, _params, socket) do
+    {:cont, socket}
   end
 
   # Helper to safely extract IDs from associations that might not be loaded
@@ -238,11 +269,12 @@ defmodule BeamFlowWeb.Shared.PostLive.FormComponent do
         post_params
       end
 
-    # Add category and tag IDs to params
+    # Add category, tag, and featured image IDs to params
     post_params =
       post_params
       |> Map.put("category_ids", socket.assigns.selected_category_ids)
       |> Map.put("tag_ids", socket.assigns.selected_tag_ids)
+      |> Map.put("featured_image_id", socket.assigns.featured_image_id)
 
     save_post(socket, socket.assigns.action, post_params)
   end

@@ -65,6 +65,18 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  # For production, we might want to use S3 or similar:
+  if config_env() == :prod do
+    # AWS S3 configuration (if needed)
+    config :beam_flow, :media_storage,
+      adapter: BeamFlow.Content.Storage.S3,
+      bucket: System.get_env("AWS_S3_BUCKET"),
+      region: System.get_env("AWS_REGION")
+  else
+    # Local storage for development and test
+    config :beam_flow, :media_storage, adapter: BeamFlow.Content.Storage.Local
+  end
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

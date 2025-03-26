@@ -22,6 +22,7 @@ defmodule BeamFlow.Content.Post do
     field :published_at, :utc_datetime
 
     belongs_to :user, BeamFlow.Accounts.User
+    belongs_to :featured_image, BeamFlow.Content.Media
     many_to_many :categories, Category, join_through: "post_categories", on_replace: :delete
     many_to_many :tags, Tag, join_through: "post_tags", on_replace: :delete
 
@@ -33,12 +34,22 @@ defmodule BeamFlow.Content.Post do
   """
   def changeset(post, attrs) do
     post
-    |> cast(attrs, [:title, :slug, :content, :excerpt, :status, :published_at, :user_id])
+    |> cast(attrs, [
+      :title,
+      :slug,
+      :content,
+      :excerpt,
+      :status,
+      :published_at,
+      :user_id,
+      :featured_image_id
+    ])
     |> validate_required([:title, :user_id])
     |> validate_inclusion(:status, @status_values)
     |> validate_published_status()
     |> validate_slug()
     |> unique_constraint(:slug)
+    |> foreign_key_constraint(:featured_image_id)
     |> put_assoc(:categories, parse_categories(attrs))
     |> put_assoc(:tags, parse_tags(attrs))
   end

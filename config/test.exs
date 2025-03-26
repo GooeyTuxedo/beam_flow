@@ -21,10 +21,15 @@ config :beam_flow, BeamFlow.Repo,
 config :beam_flow, BeamFlowWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "T6H0Tt6FpIlAlcL7n45wz5+th4Z6ocMhjtsQEHOqnlDrOEwT7iYr7CriZIpBxpCj",
-  server: false
+  server: false,
+  static_options: [
+    cache_control_for_etags: "public, max-age=0"
+  ]
 
 # In test we don't send emails
 config :beam_flow, BeamFlow.Mailer, adapter: Swoosh.Adapters.Test
+
+config :beam_flow, :async_logging, false
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
@@ -37,8 +42,6 @@ config :opentelemetry, :processors,
   otel_batch_processor: %{
     exporter: :none
   }
-
-config :beam_flow, :async_logging, false
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
