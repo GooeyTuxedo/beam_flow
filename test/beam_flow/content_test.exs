@@ -1,8 +1,12 @@
 defmodule BeamFlow.ContentTest do
   use BeamFlow.DataCase, async: true
 
+  import BeamFlowWeb.ConnCase
+  import Mock
+
   alias BeamFlow.Accounts
   alias BeamFlow.Content
+  alias BeamFlow.Content.Media
   alias BeamFlow.Content.Post
 
   @valid_attrs %{
@@ -10,6 +14,15 @@ defmodule BeamFlow.ContentTest do
     content: "This is a test post content.",
     excerpt: "Test excerpt",
     status: "draft"
+  }
+
+  @valid_media_attrs %{
+    filename: "test.jpg",
+    original_filename: "original_test.jpg",
+    content_type: "image/jpeg",
+    path: "/uploads/2025/03/26/abc123.jpg",
+    size: 1024,
+    alt_text: "Test image"
   }
 
   @user_attrs %{
@@ -47,6 +60,16 @@ defmodule BeamFlow.ContentTest do
 
     post
   end
+
+  def media_fixture(attrs \\ %{}) do
+    # Create a user if not specified
+    user = if attrs[:user_id], do: %{id: attrs[:user_id]}, else: user_fixture()
+
+    # Use the create_test_media helper
+    create_test_media(user, attrs)
+  end
+
+  # POST TESTS
 
   describe "list_posts/0" do
     @tag :unit
@@ -179,8 +202,6 @@ defmodule BeamFlow.ContentTest do
       assert post2.slug == "test-post-2"
 
       assert {:ok, %Post{} = post3} = Content.create_post(attrs)
-      # The test expected "test-post-3" but we're getting "test-post-2-3"
-      # Let's update the assertion to match the actual behavior
       assert post3.slug =~ ~r/test-post-\d+/
     end
   end
@@ -232,6 +253,197 @@ defmodule BeamFlow.ContentTest do
       assert {:ok, published_post} = Content.publish_post(post)
       assert published_post.status == "published"
       assert published_post.published_at != nil
+    end
+  end
+
+  # MEDIA TESTS
+
+  describe "list_media/1" do
+    @tag :unit
+    test "returns all media" do
+      user = user_fixture()
+      media = create_test_media(user)
+      result = Content.list_media()
+      assert Enum.map(result, & &1.id) == [media.id]
+    end
+
+    @tag :unit
+    test "filters by user_id" do
+      user1 = user_fixture()
+      user2 = user_fixture()
+
+      media1 = create_test_media(user1)
+      media2 = create_test_media(user2)
+
+      user1_media = Content.list_media([{:user_id, user1.id}])
+      user2_media = Content.list_media([{:user_id, user2.id}])
+
+      assert Enum.map(user1_media, & &1.id) == [media1.id]
+      assert Enum.map(user2_media, & &1.id) == [media2.id]
+    end
+
+    @tag :unit
+    test "filters by content_type" do
+      user = user_fixture()
+      media1 = create_test_media(user, %{content_type: "image/jpeg"})
+      media2 = create_test_media(user, %{content_type: "application/pdf"})
+
+      jpeg_media = Content.list_media([{:content_type, "image/jpeg"}])
+      pdf_media = Content.list_media([{:content_type, "application/pdf"}])
+
+      assert Enum.map(jpeg_media, & &1.id) == [media1.id]
+      assert Enum.map(pdf_media, & &1.id) == [media2.id]
+    end
+
+    @tag :unit
+    test "searches by filename" do
+      user = user_fixture()
+      media1 = create_test_media(user, %{original_filename: "search_test.jpg"})
+      _media2 = create_test_media(user, %{original_filename: "other.jpg"})
+
+      search_results = Content.list_media([{:search, "search"}])
+      assert Enum.map(search_results, & &1.id) == [media1.id]
+    end
+  end
+
+  describe "get_media!/1" do
+    @tag :unit
+    test "returns the media with given id" do
+      user = user_fixture()
+      media = create_test_media(user)
+      result = Content.get_media!(media.id)
+      assert result.id == media.id
+    end
+
+    @tag :unit
+    test "raises for non-existent id" do
+      assert_raise Ecto.NoResultsError, fn ->
+        Content.get_media!(-1)
+      end
+    end
+  end
+
+  describe "create_media_from_upload/2" do
+    setup do
+      user = user_fixture()
+      # Create a temporary file for testing
+      path = Path.join(System.tmp_dir!(), "test_file.jpg")
+      File.write!(path, "test content")
+
+      on_exit(fn ->
+        File.rm(path)
+      end)
+
+      %{user: user, temp_path: path}
+    end
+
+    @tag :serial
+    @tag :unit
+    test "creates media with valid upload", %{user: user, temp_path: path} do
+      # Mock upload struct
+      upload = %{
+        path: path,
+        content_type: "image/jpeg",
+        client_name: "test_file.jpg",
+        size: 1024
+      }
+
+      attrs = %{
+        user_id: user.id,
+        alt_text: "Test image",
+        current_user: user
+      }
+
+      # Mock the store_file function to avoid filesystem operations
+      with_mock BeamFlow.Content.MediaStorage,
+        store_file: fn _upload, _filename -> {:ok, "/uploads/mocked_path.jpg"} end,
+        delete_file: fn _path -> :ok end do
+        {:ok, media} = Content.create_media_from_upload(upload, attrs)
+
+        assert media.original_filename == "test_file.jpg"
+        assert media.content_type == "image/jpeg"
+        assert media.size == 1024
+        assert media.user_id == user.id
+        assert media.alt_text == "Test image"
+      end
+    end
+
+    @tag :unit
+    test "returns error for invalid content type", %{user: user, temp_path: path} do
+      upload = %{
+        path: path,
+        content_type: "text/plain",
+        client_name: "test_file.txt",
+        size: 1024
+      }
+
+      attrs = %{
+        user_id: user.id,
+        current_user: user
+      }
+
+      assert {:error, :content_type_not_allowed} = Content.create_media_from_upload(upload, attrs)
+    end
+  end
+
+  describe "update_media/2" do
+    @tag :unit
+    test "updates media with valid data" do
+      user = user_fixture()
+      media = create_test_media(user)
+
+      attrs = %{
+        alt_text: "Updated alt text",
+        current_user: user
+      }
+
+      assert {:ok, updated_media} = Content.update_media(media, attrs)
+      assert updated_media.alt_text == "Updated alt text"
+    end
+  end
+
+  describe "delete_media/2" do
+    @tag :serial
+    @tag :unit
+    test "deletes the media" do
+      user = user_fixture()
+      media = create_test_media(user)
+
+      # Mock the delete_file function
+      with_mock BeamFlow.Content.MediaStorage,
+        delete_file: fn _path -> :ok end do
+        assert {:ok, _media} = Content.delete_media(media, user)
+        assert_raise Ecto.NoResultsError, fn -> Content.get_media!(media.id) end
+      end
+    end
+  end
+
+  describe "Media schema" do
+    @tag :unit
+    test "changeset with valid attributes" do
+      user = user_fixture()
+      attrs = Map.put(@valid_media_attrs, :user_id, user.id)
+
+      changeset = Media.changeset(%Media{}, attrs)
+      assert changeset.valid?
+    end
+
+    @tag :unit
+    test "changeset with invalid attributes" do
+      changeset = Media.changeset(%Media{}, %{})
+      refute changeset.valid?
+    end
+
+    @tag :unit
+    test "content_type_allowed?/1 validates content types" do
+      assert Media.content_type_allowed?("image/jpeg")
+      assert Media.content_type_allowed?("image/png")
+      assert Media.content_type_allowed?("image/gif")
+      assert Media.content_type_allowed?("image/svg+xml")
+      assert Media.content_type_allowed?("application/pdf")
+
+      refute Media.content_type_allowed?("application/exe")
+      refute Media.content_type_allowed?("text/plain")
     end
   end
 end

@@ -81,7 +81,8 @@ defmodule BeamFlow.MixProject do
       {:opentelemetry_ecto, "~> 1.1"},
       {:opentelemetry_semantic_conventions, "~> 0.2"},
       {:earmark, "~> 1.4"},
-      {:html_sanitize_ex, "~> 1.4"}
+      {:html_sanitize_ex, "~> 1.4"},
+      {:mock, "~> 0.3.0", only: :test}
     ]
   end
 

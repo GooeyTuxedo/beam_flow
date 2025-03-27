@@ -182,6 +182,8 @@ defmodule BeamFlowWeb.Admin.MediaLive.Index do
     """
   end
 
+  defp format_bytes(bytes) when bytes == 0, do: "0 B"
+
   defp format_bytes(bytes) when bytes < 1024 do
     "#{bytes} B"
   end

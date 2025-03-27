@@ -192,7 +192,7 @@ defmodule BeamFlowWeb.Components.MediaLibraryComponent do
 
   @impl true
   def handle_event("select-media", %{"id" => id}, socket) do
-    media_id = String.to_integer(id)
+    media_id = if is_binary(id), do: String.to_integer(id), else: id
 
     socket =
       if socket.assigns.allow_multiple do

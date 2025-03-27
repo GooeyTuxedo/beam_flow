@@ -62,6 +62,9 @@ defmodule BeamFlowWeb.ConnCase do
     |> Plug.Conn.put_session(:user_token, token)
   end
 
+  @doc """
+  Creates a test user with the specified role.
+  """
   def create_test_user(role) do
     {:ok, user} =
       BeamFlow.Accounts.register_user(%{
@@ -72,5 +75,24 @@ defmodule BeamFlowWeb.ConnCase do
       })
 
     user
+  end
+
+  @doc """
+  Creates a test media file associated with the given user.
+  """
+  def create_test_media(user, attrs \\ %{}) do
+    default_attrs = %{
+      filename: "test-#{System.unique_integer()}.jpg",
+      original_filename: "test.jpg",
+      content_type: "image/jpeg",
+      path: "/uploads/test-#{System.unique_integer()}.jpg",
+      size: 1024,
+      user_id: user.id
+    }
+
+    merged_attrs = Map.merge(default_attrs, attrs)
+
+    {:ok, media} = BeamFlow.Repo.insert(struct(BeamFlow.Content.Media, merged_attrs))
+    media
   end
 end

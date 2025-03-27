@@ -193,6 +193,8 @@ defmodule BeamFlowWeb.Components.MediaUploaderComponent do
     String.starts_with?(content_type, "image/")
   end
 
+  defp format_bytes(bytes) when bytes == 0, do: "0 B"
+
   defp format_bytes(bytes) when bytes < 1024 do
     "#{bytes} B"
   end
